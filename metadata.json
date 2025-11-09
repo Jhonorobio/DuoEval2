@@ -1,0 +1,5 @@
+{
+  "name": "adaptación a Superbase Teacher Evaluation Platform",
+  "description": "A platform for students from preschool to 11th grade to evaluate their teachers, inspired by the Duolingo user experience. It features different evaluation systems for primary and high school students and includes a statistics section to analyze the results.",
+  "requestFramePermissions": []
+}
