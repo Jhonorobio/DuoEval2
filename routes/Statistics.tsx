@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import {
   BarChart,
   Bar,
@@ -42,6 +43,9 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   const [teacherChartType, setTeacherChartType] = useState<'bar' | 'radar'>('bar');
   const [isDeleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [teacherAnalysisTab, setTeacherAnalysisTab] = useState<'primary' | 'highSchool'>('primary');
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const teachersInSelectedGrade = useMemo(() => {
     if (!selectedGradeForStudent) return [];
@@ -54,6 +58,11 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   useEffect(() => {
     setSelectedTeacherForStudent('');
   }, [selectedGradeForStudent]);
+  
+  useEffect(() => {
+    setAiSummary(null);
+    setSummaryError(null);
+  }, [selectedTeacherForAnalysis, teacherAnalysisTab]);
 
   const getScore = (answer: Answer, isPrimary: boolean): number => {
     if (isPrimary) {
@@ -176,6 +185,55 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     );
   }, [evaluations, selectedGradeForStudent, selectedTeacherForStudent]);
   
+  const handleGenerateSummary = async () => {
+    if (!selectedTeacherForAnalysis || teacherAnalysisData.length === 0) return;
+
+    setIsGeneratingSummary(true);
+    setAiSummary(null);
+    setSummaryError(null);
+
+    const teacherName = teachers.find(t => t.id === selectedTeacherForAnalysis)?.name;
+    const isPrimary = teacherAnalysisTab === 'primary';
+    const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
+    const maxScore = isPrimary ? 3 : 4;
+
+    const dataForPrompt = teacherAnalysisData.map(d => `- "${d.fullQuestion}": ${d.score.toFixed(2)}`).join('\n');
+
+    const prompt = `
+      Eres un experto en pedagogía y análisis de datos educativos.
+      A continuación, se presentan los resultados de una evaluación para el profesor(a) ${teacherName} en el nivel de ${levelText}.
+      Los estudiantes calificaron una serie de preguntas en una escala de 1 a ${maxScore}.
+
+      Resultados (Pregunta: Puntaje Promedio):
+      ${dataForPrompt}
+
+      Por favor, genera un análisis detallado y constructivo en español. El análisis debe estar en formato Markdown e incluir las siguientes secciones:
+
+      1.  **Resumen General**: Una breve descripción del desempeño general del profesor.
+      2.  **Fortalezas Clave**: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas. Explica qué indican estos buenos resultados en términos de prácticas pedagógicas.
+      3.  **Áreas de Oportunidad**: Identifica 2-3 áreas con las calificaciones más bajas. Preséntalas de manera constructiva, no como "debilidades", sino como "oportunidades de mejora".
+      4.  **Sugerencias Accionables**: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas que el profesor pueda implementar para mejorar. Las sugerencias deben ser realistas y orientadas a la acción.
+
+      El tono debe ser profesional, alentador y enfocado en el desarrollo profesional.
+    `;
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      });
+
+      setAiSummary(response.text);
+
+    } catch (error) {
+      console.error("Error generating AI summary:", error);
+      setSummaryError('Hubo un error al generar el resumen. Por favor, inténtalo de nuevo.');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
   const formatAnswer = (answer: Answer, isPrimary: boolean): string | number => {
       if (isPrimary) {
           return PRIMARY_RATING_OPTIONS.find(o => o.value === answer)?.label || '-';
@@ -479,6 +537,52 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
           {selectedTeacherForAnalysis && teacherLevels.size === 0 && (
             <p className="text-center text-gray-500 mt-4">No hay datos de evaluación para este profesor.</p>
           )}
+          
+          {selectedTeacherForAnalysis && teacherLevels.size > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="flex justify-center">
+                    <button
+                        onClick={handleGenerateSummary}
+                        disabled={isGeneratingSummary}
+                        className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
+                    >
+                        {isGeneratingSummary ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Generando...
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M12 3c-1.2 0-2.4.6-3 1.7A3.5 3.5 0 0 0 5.5 8c0 2 2 3.5 3.5 3.5s3.5-1.5 3.5-3.5A3.5 3.5 0 0 0 9 4.7c-.6-1.1-1.8-1.7-3-1.7Z"></path><path d="m12 12 1.4-1.4a2 2 0 0 1 2.8 0L17 11.4a2 2 0 0 1 0 2.8L12 20l-5-5a2 2 0 0 1 0-2.8l.8-.8a2 2 0 0 1 2.8 0L12 12v0Z"></path></svg>
+                                Generar Resumen con IA
+                            </>
+                        )}
+                    </button>
+                </div>
+                
+                {isGeneratingSummary && (
+                    <div className="mt-6 text-center text-gray-600">
+                        <p>La IA está analizando los datos, esto puede tardar unos segundos...</p>
+                    </div>
+                )}
+
+                {summaryError && (
+                    <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert">
+                        <p className="font-bold">Error al generar resumen</p>
+                        <p>{summaryError}</p>
+                    </div>
+                )}
+                
+                {aiSummary && (
+                    <div className="mt-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                        <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{aiSummary}</pre>
+                    </div>
+                )}
+              </div>
+            )}
       </Section>
 
       <Section title="Análisis Detallado por Estudiante" onExport={studentAnalysisData.length > 0 ? handleExportStudentAnalysis : undefined}>
