@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { ArrowLeftIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
@@ -10,13 +11,39 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
     const [dataType, setDataType] = useState<'general' | 'teacher' | 'student' | 'comprehensive' | 'unknown' | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [chartType, setChartType] = useState<'bar' | 'radar'>('bar');
     
+    // State for teacher view
+    const [chartType, setChartType] = useState<'bar' | 'radar'>('bar');
+    const [teacherViewLevel, setTeacherViewLevel] = useState<'Primaria' | 'Bachillerato'>('Primaria');
+
     // State for comprehensive view filters
     const [comprehensiveTeacher, setComprehensiveTeacher] = useState<string>('');
+    const [comprehensiveTeacherLevel, setComprehensiveTeacherLevel] = useState<'PRIMARY' | 'HIGH_SCHOOL'>('PRIMARY');
     const [comprehensiveChartType, setComprehensiveChartType] = useState<'bar' | 'radar'>('bar');
     const [comprehensiveGrade, setComprehensiveGrade] = useState<string>('');
     const [comprehensiveTeacherForStudent, setComprehensiveTeacherForStudent] = useState<string>('');
+    
+    // State for AI Summaries
+    const [generalAiSummary, setGeneralAiSummary] = useState<string | null>(null);
+    const [isGeneratingGeneralSummary, setIsGeneratingGeneralSummary] = useState(false);
+    const [generalSummaryError, setGeneralSummaryError] = useState<string | null>(null);
+    const [teacherAiSummary, setTeacherAiSummary] = useState<string | null>(null);
+    const [isGeneratingTeacherSummary, setIsGeneratingTeacherSummary] = useState(false);
+    const [teacherSummaryError, setTeacherSummaryError] = useState<string | null>(null);
+    const [teacherFileAiSummary, setTeacherFileAiSummary] = useState<string | null>(null);
+    const [isGeneratingTeacherFileSummary, setIsGeneratingTeacherFileSummary] = useState(false);
+    const [teacherFileSummaryError, setTeacherFileSummaryError] = useState<string | null>(null);
+
+
+    useEffect(() => {
+        setTeacherAiSummary(null);
+        setTeacherSummaryError(null);
+    }, [comprehensiveTeacher, comprehensiveTeacherLevel]);
+    
+    useEffect(() => {
+        setTeacherFileAiSummary(null);
+        setTeacherFileSummaryError(null);
+    }, [teacherViewLevel]);
 
 
     const processCsv = (csvText: string) => {
@@ -131,7 +158,64 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setComprehensiveTeacher('');
         setComprehensiveGrade('');
         setComprehensiveTeacherForStudent('');
+        setGeneralAiSummary(null);
+        setIsGeneratingGeneralSummary(false);
+        setGeneralSummaryError(null);
+        setTeacherAiSummary(null);
+        setIsGeneratingTeacherSummary(false);
+        setTeacherSummaryError(null);
+        setTeacherFileAiSummary(null);
+        setIsGeneratingTeacherFileSummary(false);
+        setTeacherFileSummaryError(null);
     };
+
+    const teacherLevels = useMemo(() => {
+        const levels = new Set<'PRIMARY' | 'HIGH_SCHOOL'>();
+        if (dataType !== 'comprehensive' || !parsedData || !comprehensiveTeacher) {
+            return levels;
+        }
+        parsedData.forEach(row => {
+            if (row['Profesor'] === comprehensiveTeacher) {
+                if (row['Nivel'] === 'PRIMARY' || row['Nivel'] === 'HIGH_SCHOOL') {
+                     levels.add(row['Nivel']);
+                }
+            }
+        });
+        return levels;
+    }, [parsedData, dataType, comprehensiveTeacher]);
+    
+    const teacherViewAvailableLevels = useMemo(() => {
+        const levels = new Set<'Primaria' | 'Bachillerato'>();
+        if (dataType !== 'teacher' || !parsedData || !parsedData[0]['Nivel']) {
+            return levels;
+        }
+        parsedData.forEach(row => {
+            if (row['Nivel'] === 'Primaria' || row['Nivel'] === 'Bachillerato') {
+                levels.add(row['Nivel']);
+            }
+        });
+        return levels;
+    }, [dataType, parsedData]);
+
+    useEffect(() => {
+        if (teacherLevels.size > 0) {
+            if (teacherLevels.has('PRIMARY')) {
+                setComprehensiveTeacherLevel('PRIMARY');
+            } else if (teacherLevels.has('HIGH_SCHOOL')) {
+                setComprehensiveTeacherLevel('HIGH_SCHOOL');
+            }
+        }
+    }, [teacherLevels]);
+
+    useEffect(() => {
+        if (teacherViewAvailableLevels.size > 0) {
+            if (teacherViewAvailableLevels.has('Primaria')) {
+                setTeacherViewLevel('Primaria');
+            } else if (teacherViewAvailableLevels.has('Bachillerato')) {
+                setTeacherViewLevel('Bachillerato');
+            }
+        }
+    }, [teacherViewAvailableLevels]);
 
     const comprehensiveData = useMemo(() => {
         if (dataType !== 'comprehensive' || !parsedData) return null;
@@ -175,14 +259,12 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         });
         
         let teacherSpecificChartData = null;
-        let teacherLevel: 'PRIMARY' | 'HIGH_SCHOOL' = 'PRIMARY';
     
         if (comprehensiveTeacher) {
             const questionScores: Record<string, { scores: number[], order: number }> = {};
-            const teacherEvals = parsedData.filter(row => row['Profesor'] === comprehensiveTeacher);
+            const teacherEvals = parsedData.filter(row => row['Profesor'] === comprehensiveTeacher && row['Nivel'] === comprehensiveTeacherLevel);
     
             if (teacherEvals.length > 0) {
-                teacherLevel = teacherEvals[0]['Nivel'] as ('PRIMARY' | 'HIGH_SCHOOL');
                 teacherEvals.forEach(row => {
                     const questionText = row['Pregunta'];
                     const questionNum = parseInt(row['Nº Pregunta'], 10);
@@ -208,8 +290,162 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
             }
         }
     
-        return { primaryData, highSchoolData, allTeachersInCsv, teacherSpecificChartData, teacherLevel };
-    }, [parsedData, dataType, comprehensiveTeacher]);
+        return { primaryData, highSchoolData, allTeachersInCsv, teacherSpecificChartData, teacherLevel: comprehensiveTeacherLevel };
+    }, [parsedData, dataType, comprehensiveTeacher, comprehensiveTeacherLevel]);
+    
+    const handleGenerateGeneralSummary = async () => {
+        if (!comprehensiveData) return;
+        setIsGeneratingGeneralSummary(true);
+        setGeneralAiSummary(null);
+        setGeneralSummaryError(null);
+
+        const { primaryData, highSchoolData } = comprehensiveData;
+
+        const formatData = (data: any[]) => 
+            data.map(d => `- ${d.name} (Promedio: ${d['Calificación Promedio']}, Encuestas: ${d['Total de Encuestas']})`).join('\n');
+
+        const primaryPromptData = primaryData.length > 0 ? formatData(primaryData) : 'No hay datos para Primaria.';
+        const highSchoolPromptData = highSchoolData.length > 0 ? formatData(highSchoolData) : 'No hay datos para Bachillerato.';
+
+        const prompt = `
+            Eres un director académico analizando los resultados de las evaluaciones docentes de un archivo de datos.
+            A continuación se presentan los promedios generales de los profesores en Primaria y Bachillerato.
+
+            Resultados de Primaria:
+            ${primaryPromptData}
+
+            Resultados de Bachillerato:
+            ${highSchoolPromptData}
+
+            Por favor, genera un análisis de alto nivel en español y formato Markdown que incluya:
+            1.  **Comparativa General**: Compara brevemente el desempeño general entre Primaria y Bachillerato. ¿Hay alguna tendencia notable?
+            2.  **Profesores Destacados**: Identifica 1 o 2 profesores con los resultados más altos en cada nivel (si aplica).
+            3.  **Áreas de Enfoque**: Identifica 1 o 2 profesores con los resultados más bajos que podrían necesitar más apoyo.
+            4.  **Recomendación Estratégica**: Basado en los datos, ¿qué recomendación general darías a la coordinación académica?
+
+            El tono debe ser profesional, objetivo y orientado a la toma de decisiones.
+        `;
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setGeneralAiSummary(response.text);
+        } catch (error) {
+            console.error("Error generating general AI summary:", error);
+            setGeneralSummaryError('Hubo un error al generar el resumen general.');
+        } finally {
+            setIsGeneratingGeneralSummary(false);
+        }
+    };
+
+    const handleGenerateTeacherSummary = async () => {
+        if (!comprehensiveTeacher || !comprehensiveData?.teacherSpecificChartData) return;
+        setIsGeneratingTeacherSummary(true);
+        setTeacherAiSummary(null);
+        setTeacherSummaryError(null);
+
+        const { teacherSpecificChartData, teacherLevel } = comprehensiveData;
+        const isPrimary = teacherLevel === 'PRIMARY';
+        const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
+        const maxScore = isPrimary ? 3 : 4;
+        const dataForPrompt = teacherSpecificChartData.map(d => `- "${d.fullQuestion}": ${d.score.toFixed(2)}`).join('\n');
+
+        const prompt = `
+            Eres un experto en pedagogía y análisis de datos educativos.
+            A continuación, se presentan los resultados de una evaluación para el profesor(a) ${comprehensiveTeacher} en el nivel de ${levelText}, extraídos de un archivo CSV.
+            Los estudiantes calificaron una serie de preguntas en una escala de 1 a ${maxScore}.
+
+            Resultados (Pregunta: Puntaje Promedio):
+            ${dataForPrompt}
+
+            Por favor, genera un análisis detallado y constructivo en español y formato Markdown que incluya:
+            1.  **Resumen General**: Una breve descripción del desempeño general del profesor según estos datos.
+            2.  **Fortalezas Clave**: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas.
+            3.  **Áreas de Oportunidad**: Identifica 2-3 áreas con las calificaciones más bajas como oportunidades de mejora.
+            4.  **Sugerencias Accionables**: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas.
+
+            El tono debe ser profesional, alentador y enfocado en el desarrollo profesional.
+        `;
+        
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setTeacherAiSummary(response.text);
+        } catch (error) {
+            console.error("Error generating teacher AI summary:", error);
+            setTeacherSummaryError('Hubo un error al generar el resumen del profesor.');
+        } finally {
+            setIsGeneratingTeacherSummary(false);
+        }
+    };
+    
+    const handleGenerateTeacherFileSummary = async () => {
+        if (dataType !== 'teacher' || !parsedData) return;
+        
+        setIsGeneratingTeacherFileSummary(true);
+        setTeacherFileAiSummary(null);
+        setTeacherFileSummaryError(null);
+
+        const filteredTeacherData = parsedData.filter(d => 
+            teacherViewAvailableLevels.size === 0 || d['Nivel'] === teacherViewLevel
+        );
+
+        const teacherChartData = filteredTeacherData.map((d, i) => ({
+            fullQuestion: d['Pregunta'],
+            score: parseFloat(d['Puntaje Promedio']),
+        }));
+        
+        if (teacherChartData.length === 0) {
+            setTeacherFileSummaryError('No hay datos para generar un resumen.');
+            setIsGeneratingTeacherFileSummary(false);
+            return;
+        }
+
+        const teacherNameMatch = fileName?.match(/profesor_([^_]+)/i);
+        const teacherName = teacherNameMatch ? teacherNameMatch[1].replace(/_/g, ' ') : 'este profesor';
+        const isPrimary = teacherViewLevel === 'Primaria';
+        const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
+        const maxScore = teacherChartData.some(d => d.score > 3) ? 4 : 3;
+        const dataForPrompt = teacherChartData.map(d => `- "${d.fullQuestion}": ${d.score.toFixed(2)}`).join('\n');
+
+        const prompt = `
+            Eres un experto en pedagogía y análisis de datos educativos.
+            A continuación, se presentan los resultados de una evaluación para ${teacherName} en el nivel de ${levelText}, extraídos de un archivo CSV de análisis de profesor.
+            Los estudiantes calificaron una serie de preguntas en una escala de 1 a ${maxScore}.
+
+            Resultados (Pregunta: Puntaje Promedio):
+            ${dataForPrompt}
+
+            Por favor, genera un análisis detallado y constructivo en español y formato Markdown que incluya:
+            1.  **Resumen General**: Una breve descripción del desempeño general del profesor según estos datos.
+            2.  **Fortalezas Clave**: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas.
+            3.  **Áreas de Oportunidad**: Identifica 2-3 áreas con las calificaciones más bajas como oportunidades de mejora.
+            4.  **Sugerencias Accionables**: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas.
+
+            El tono debe ser profesional, alentador y enfocado en el desarrollo profesional.
+        `;
+        
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setTeacherFileAiSummary(response.text);
+        } catch (error) {
+            console.error("Error generating teacher file AI summary:", error);
+            setTeacherFileSummaryError('Hubo un error al generar el resumen del profesor.');
+        } finally {
+            setIsGeneratingTeacherFileSummary(false);
+        }
+    };
+
 
     const allGradesInCsv = useMemo(() => {
         if (dataType !== 'comprehensive' || !parsedData) return [];
@@ -298,21 +534,57 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                     </ResponsiveContainer>
                 );
             case 'teacher':
-                const teacherChartData = parsedData.map((d, i) => ({
-                    question: `Q${i+1}`,
+                const filteredTeacherData = parsedData.filter(d => 
+                    teacherViewAvailableLevels.size === 0 || d['Nivel'] === teacherViewLevel
+                );
+                const teacherChartData = filteredTeacherData.map((d, i) => ({
+                    question: `Q${i + 1}`,
                     fullQuestion: d['Pregunta'],
                     score: parseFloat(d['Puntaje Promedio']),
                 }));
                 const maxScore = teacherChartData.some(d => d.score > 3) ? 4 : 3;
+                const isPrimaryTeacherView = teacherViewLevel === 'Primaria';
+
                 return (
                     <>
-                        <div className="flex justify-end mb-4">
-                            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
-                                <button onClick={() => setChartType('bar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${chartType === 'bar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>
-                                    Barras
-                                </button>
-                                <button onClick={() => setChartType('radar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${chartType === 'radar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>
-                                    Radial
+                        <div className="flex justify-between items-center mb-4">
+                             {teacherViewAvailableLevels.size > 1 && (
+                                <div className="flex border-b border-gray-200">
+                                    <button
+                                        onClick={() => setTeacherViewLevel('Primaria')}
+                                        disabled={!teacherViewAvailableLevels.has('Primaria')}
+                                        className={`py-2 px-4 text-lg font-bold transition-colors duration-200 outline-none ${
+                                            teacherViewLevel === 'Primaria' ? 'border-b-4 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'
+                                        }`}
+                                    >
+                                        Análisis Primaria
+                                    </button>
+                                    <button
+                                        onClick={() => setTeacherViewLevel('Bachillerato')}
+                                        disabled={!teacherViewAvailableLevels.has('Bachillerato')}
+                                        className={`py-2 px-4 text-lg font-bold transition-colors duration-200 outline-none ${
+                                            teacherViewLevel === 'Bachillerato' ? 'border-b-4 border-purple-500 text-purple-600' : 'text-gray-500 hover:text-gray-800'
+                                        }`}
+                                    >
+                                        Análisis Bachillerato
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-4 ml-auto">
+                                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+                                    <button onClick={() => setChartType('bar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${chartType === 'bar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>
+                                        Barras
+                                    </button>
+                                    <button onClick={() => setChartType('radar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${chartType === 'radar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>
+                                        Radial
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={handleGenerateTeacherFileSummary}
+                                    disabled={isGeneratingTeacherFileSummary}
+                                    className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                >
+                                    {isGeneratingTeacherFileSummary ? 'Generando...' : 'Generar Resumen con IA'}
                                 </button>
                             </div>
                         </div>
@@ -324,7 +596,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                     <YAxis domain={[0, maxScore]} />
                                     <Tooltip content={<ChartTooltipWithFullQuestion />} />
                                     <Legend />
-                                    <Bar dataKey="score" fill="#8884d8" name={`Puntaje Promedio`} />
+                                    <Bar dataKey="score" fill={isPrimaryTeacherView ? "#82ca9d" : "#8884d8"} name={`Puntaje Promedio`} />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : (
@@ -333,12 +605,30 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                     <PolarGrid />
                                     <PolarAngleAxis dataKey="question" />
                                     <PolarRadiusAxis angle={30} domain={[0, maxScore]}/>
-                                    <Radar name="Puntaje Promedio" dataKey="score" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                                    <Radar name="Puntaje Promedio" dataKey="score" stroke={isPrimaryTeacherView ? "#34d399" : "#a78bfa"} fill={isPrimaryTeacherView ? "#a7f3d0" : "#d8b4fe"} fillOpacity={0.6} />
                                     <Tooltip content={<ChartTooltipWithFullQuestion />} />
                                     <Legend />
                                 </RadarChart>
                             </ResponsiveContainer>
                         )}
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                            {isGeneratingTeacherFileSummary && (
+                                <div className="text-center text-gray-600">
+                                    <p>La IA está analizando los datos del profesor, esto puede tardar unos segundos...</p>
+                                </div>
+                            )}
+                            {teacherFileSummaryError && (
+                                <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert">
+                                    <p className="font-bold">Error al generar resumen</p>
+                                    <p>{teacherFileSummaryError}</p>
+                                </div>
+                            )}
+                            {teacherFileAiSummary && (
+                                <div className="mt-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                                    <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{teacherFileAiSummary}</pre>
+                                </div>
+                            )}
+                        </div>
                    </>
                 );
             case 'student':
@@ -366,6 +656,47 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
 
                 return (
                     <div className="flex flex-col gap-8">
+                        <Section title="Análisis General con IA del Archivo">
+                            <div className="flex justify-center">
+                                <button
+                                    onClick={handleGenerateGeneralSummary}
+                                    disabled={isGeneratingGeneralSummary}
+                                    className="flex items-center gap-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
+                                >
+                                    {isGeneratingGeneralSummary ? (
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Analizando Archivo...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M12 3c-1.2 0-2.4.6-3 1.7A3.5 3.5 0 0 0 5.5 8c0 2 2 3.5 3.5 3.5s3.5-1.5 3.5-3.5A3.5 3.5 0 0 0 9 4.7c-.6-1.1-1.8-1.7-3-1.7Z"></path><path d="m12 12 1.4-1.4a2 2 0 0 1 2.8 0L17 11.4a2 2 0 0 1 0 2.8L12 20l-5-5a2 2 0 0 1 0-2.8l.8-.8a2 2 0 0 1 2.8 0L12 12v0Z"></path></svg>
+                                            Generar Resumen General
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                             {isGeneratingGeneralSummary && (
+                                <div className="mt-6 text-center text-gray-600">
+                                    <p>La IA está analizando los datos de todo el archivo, esto puede tardar unos segundos...</p>
+                                </div>
+                            )}
+                            {generalSummaryError && (
+                                <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert">
+                                    <p className="font-bold">Error al generar resumen</p>
+                                    <p>{generalSummaryError}</p>
+                                </div>
+                            )}
+                             {generalAiSummary && (
+                                <div className="mt-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                                    <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{generalAiSummary}</pre>
+                                </div>
+                            )}
+                        </Section>
+
                         <Section title="Resumen General (Primaria) del Archivo">
                             <ResponsiveContainer width="100%" height={300}>
                                 <BarChart data={primaryData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -402,10 +733,43 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                     <option value="">-- Selecciona un Profesor --</option>
                                     {allTeachersInCsv.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
+
+                                {comprehensiveTeacher && teacherLevels.size > 1 && (
+                                    <div className="flex border-b border-gray-200">
+                                        <button
+                                            onClick={() => setComprehensiveTeacherLevel('PRIMARY')}
+                                            disabled={!teacherLevels.has('PRIMARY')}
+                                            className={`py-2 px-4 text-lg font-bold transition-colors duration-200 outline-none ${
+                                                comprehensiveTeacherLevel === 'PRIMARY' ? 'border-b-4 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'
+                                            }`}
+                                        >
+                                            Análisis Primaria
+                                        </button>
+                                        <button
+                                            onClick={() => setComprehensiveTeacherLevel('HIGH_SCHOOL')}
+                                            disabled={!teacherLevels.has('HIGH_SCHOOL')}
+                                            className={`py-2 px-4 text-lg font-bold transition-colors duration-200 outline-none ${
+                                                comprehensiveTeacherLevel === 'HIGH_SCHOOL' ? 'border-b-4 border-purple-500 text-purple-600' : 'text-gray-500 hover:text-gray-800'
+                                            }`}
+                                        >
+                                            Análisis Bachillerato
+                                        </button>
+                                    </div>
+                                )}
+
                                 {comprehensiveTeacher && teacherSpecificChartData && (
-                                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg self-start">
-                                        <button onClick={() => setComprehensiveChartType('bar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${comprehensiveChartType === 'bar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>Barras</button>
-                                        <button onClick={() => setComprehensiveChartType('radar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${comprehensiveChartType === 'radar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>Radial</button>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg self-start">
+                                            <button onClick={() => setComprehensiveChartType('bar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${comprehensiveChartType === 'bar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>Barras</button>
+                                            <button onClick={() => setComprehensiveChartType('radar')} className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${comprehensiveChartType === 'radar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}>Radial</button>
+                                        </div>
+                                         <button
+                                            onClick={handleGenerateTeacherSummary}
+                                            disabled={isGeneratingTeacherSummary}
+                                            className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                                        >
+                                            {isGeneratingTeacherSummary ? 'Generando...' : 'Generar Resumen con IA'}
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -429,7 +793,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                                 <PolarGrid />
                                                 <PolarAngleAxis dataKey="question" />
                                                 <PolarRadiusAxis angle={30} domain={[0, maxComprehensiveScore]} />
-                                                <Radar name="Puntaje Promedio" dataKey="score" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                                                <Radar name="Puntaje Promedio" dataKey="score" stroke={teacherLevel === 'PRIMARY' ? "#34d399" : "#a78bfa"} fill={teacherLevel === 'PRIMARY' ? "#a7f3d0" : "#d8b4fe"} fillOpacity={0.6} />
                                                 <Tooltip content={<ChartTooltipWithFullQuestion />} />
                                                 <Legend />
                                             </RadarChart>
@@ -438,6 +802,27 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                 </div>
                             )}
                             {comprehensiveTeacher && !teacherSpecificChartData && <p className="text-center text-gray-500 mt-4">No hay datos para este profesor.</p>}
+                            
+                            {comprehensiveTeacher && (
+                                <div className="mt-6 pt-6 border-t border-gray-200">
+                                    {isGeneratingTeacherSummary && (
+                                        <div className="text-center text-gray-600">
+                                            <p>La IA está analizando los datos del profesor, esto puede tardar unos segundos...</p>
+                                        </div>
+                                    )}
+                                    {teacherSummaryError && (
+                                        <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert">
+                                            <p className="font-bold">Error al generar resumen</p>
+                                            <p>{teacherSummaryError}</p>
+                                        </div>
+                                    )}
+                                    {teacherAiSummary && (
+                                        <div className="mt-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                                            <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{teacherAiSummary}</pre>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </Section>
 
                         <Section title="Análisis Detallado por Estudiante">

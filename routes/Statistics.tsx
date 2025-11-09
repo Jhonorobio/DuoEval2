@@ -262,16 +262,53 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   };
 
   const handleExportTeacherAnalysis = () => {
-      if (!selectedTeacherForAnalysis) return;
-      const teacherName = teachers.find(t => t.id === selectedTeacherForAnalysis)?.name || 'desconocido';
-      const level = teacherAnalysisTab === 'primary' ? 'primaria' : 'bachillerato';
+    if (!selectedTeacherForAnalysis) return;
 
-      const formattedData = teacherAnalysisData.map((item) => ({
-          'Pregunta': item.fullQuestion,
-          'Puntaje Promedio': item.score,
-      }));
+    const teacherName = teachers.find(t => t.id === selectedTeacherForAnalysis)?.name || 'desconocido';
+    let combinedData: { 'Nivel': string; 'Pregunta': string; 'Puntaje Promedio': number }[] = [];
 
-      downloadCSV(formattedData, `analisis_${level}_profesor_${teacherName.replace(/\s+/g, '_')}.csv`);
+    if (teacherLevels.has(EvaluationLevel.Primary)) {
+        const primaryEvals = evaluations.filter(e => {
+            if (e.teacherId !== selectedTeacherForAnalysis) return false;
+            const grade = grades.find(g => g.id === e.gradeId);
+            return grade?.level === EvaluationLevel.Primary;
+        });
+
+        const primaryData = primaryQuestions.map((q, index) => {
+            const scores = primaryEvals.map(e => getScore(e.answers[index], true)).filter(score => score > 0);
+            const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+            return {
+                'Nivel': 'Primaria',
+                'Pregunta': q,
+                'Puntaje Promedio': parseFloat(averageScore.toFixed(2)),
+            };
+        });
+        combinedData = combinedData.concat(primaryData);
+    }
+
+    if (teacherLevels.has(EvaluationLevel.HighSchool)) {
+        const highSchoolEvals = evaluations.filter(e => {
+            if (e.teacherId !== selectedTeacherForAnalysis) return false;
+            const grade = grades.find(g => g.id === e.gradeId);
+            return grade?.level === EvaluationLevel.HighSchool;
+        });
+        const highSchoolData = highSchoolQuestions.map((q, index) => {
+            const scores = highSchoolEvals.map(e => getScore(e.answers[index], false)).filter(score => score > 0);
+            const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+            return {
+                'Nivel': 'Bachillerato',
+                'Pregunta': q,
+                'Puntaje Promedio': parseFloat(averageScore.toFixed(2)),
+            };
+        });
+        combinedData = combinedData.concat(highSchoolData);
+    }
+    
+    if (combinedData.length > 0) {
+        downloadCSV(combinedData, `analisis_profesor_${teacherName.replace(/\s+/g, '_')}.csv`);
+    } else {
+        alert('No hay datos de análisis para exportar para este profesor.');
+    }
   };
 
   const handleExportStudentAnalysis = () => {
