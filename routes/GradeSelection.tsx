@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Grade, EvaluationLevel } from '../types';
 import { ArrowLeftIcon } from '../components/Icons';
@@ -10,21 +11,6 @@ interface GradeSelectionViewProps {
 }
 
 export const GradeSelectionView: React.FC<GradeSelectionViewProps> = ({ studentName, grades, onSelectGrade, onBack }) => {
-  const processedGrades = React.useMemo(() => {
-    const gradesCopy = [...grades];
-    // Manually add Preschool grade if it's not present in the data from the backend.
-    if (!gradesCopy.some(g => g.id === 0)) {
-      gradesCopy.push({
-        id: 0,
-        name: '0°',
-        level: EvaluationLevel.Primary,
-        assignments: [],
-      });
-    }
-    // Sort all grades by id to ensure "0°" comes first.
-    return gradesCopy.sort((a, b) => a.id - b.id);
-  }, [grades]);
-
   return (
     <div className="w-full text-center animate-fade">
         <div className="relative mb-6 text-center">
@@ -43,7 +29,7 @@ export const GradeSelectionView: React.FC<GradeSelectionViewProps> = ({ studentN
             <span className="flex-grow border-t border-gray-300"></span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {processedGrades.map(grade => (
+        {grades.map(grade => (
             <button
               key={grade.id}
               onClick={() => onSelectGrade(grade)}

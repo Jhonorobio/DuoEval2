@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import supabase from '../supabaseClient';
-import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer } from '../types';
+import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer, EvaluationLevel } from '../types';
 
 export const useAppData = () => {
     const [grades, setGrades] = useState<Grade[]>([]);
@@ -46,10 +46,22 @@ export const useAppData = () => {
                     gradeId: a.grade_id,
                 }));
 
-                const gradesData: Grade[] = gradesRes.data.map((g: any) => ({
+                let gradesData: Grade[] = gradesRes.data.map((g: any) => ({
                     ...g,
                     assignments: assignmentsData.filter(a => (a as any).gradeId === g.id)
                 }));
+                
+                // Ensure Preschool grade exists and sort all grades
+                if (!gradesData.some(g => g.id === 0)) {
+                  gradesData.push({
+                    id: 0,
+                    name: '0°',
+                    level: EvaluationLevel.Primary,
+                    assignments: [],
+                  });
+                }
+                gradesData.sort((a, b) => a.id - b.id);
+
 
                 setGrades(gradesData);
                 setTeachers(teachersRes.data);
