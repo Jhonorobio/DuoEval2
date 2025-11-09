@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import supabase from './supabaseClient';
-import { Answer, Evaluation, EvaluationTarget, Grade, PrimaryRating, Teacher, Subject } from './types';
+import { Answer, Evaluation, EvaluationTarget, Grade, PrimaryRating, Teacher, Subject, TeachingAssignment } from './types';
 import { useAppData } from './hooks/useAppData';
 import { NameEntryView } from './routes/NameEntry';
 import { GradeSelectionView } from './routes/GradeSelection';
@@ -192,7 +192,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveTeacher = async (formData: { id: string | null; name: string; subjectIds: string[]; gradeIds: number[] }) => {
+  const handleSaveTeacher = async (formData: { id: string | null; name: string; assignments: Record<string, number[]> }) => {
       let teacherId = formData.id;
       
       try {
@@ -208,16 +208,16 @@ const App: React.FC = () => {
         const { error: deleteError } = await supabase.from('assignments').delete().eq('teacher_id', teacherId);
         if (deleteError) throw deleteError;
 
-        const newAssignments = formData.gradeIds.flatMap(gradeId => 
-            formData.subjectIds.map(subjectId => ({
+        const newAssignmentsToInsert = Object.entries(formData.assignments).flatMap(([subjectId, gradeIds]) => 
+            gradeIds.map(gradeId => ({
                 grade_id: gradeId,
                 teacher_id: teacherId,
                 subject_id: subjectId,
             }))
         );
 
-        if (newAssignments.length > 0) {
-            const { error: insertError } = await supabase.from('assignments').insert(newAssignments);
+        if (newAssignmentsToInsert.length > 0) {
+            const { error: insertError } = await supabase.from('assignments').insert(newAssignmentsToInsert);
             if (insertError) throw insertError;
         }
 
@@ -226,15 +226,18 @@ const App: React.FC = () => {
         } else {
             setTeachers(prev => [...prev, { id: teacherId!, name: formData.name }]);
         }
-
+        
         const newGrades = grades.map(grade => {
             const assignmentsWithoutTeacher = grade.assignments.filter(a => a.teacherId !== teacherId);
-            if (formData.gradeIds.includes(grade.id)) {
-                const newAssignmentsForGrade = formData.subjectIds.map(subjectId => ({ teacherId: teacherId!, subjectId }));
-                return { ...grade, assignments: [...assignmentsWithoutTeacher, ...newAssignmentsForGrade] };
-            }
-            return { ...grade, assignments: assignmentsWithoutTeacher };
+            const newAssignmentsForGrade: TeachingAssignment[] = [];
+            Object.entries(formData.assignments).forEach(([subjectId, gradeIds]) => {
+                if (gradeIds.includes(grade.id)) {
+                    newAssignmentsForGrade.push({ teacherId: teacherId!, subjectId });
+                }
+            });
+            return { ...grade, assignments: [...assignmentsWithoutTeacher, ...newAssignmentsForGrade] };
         });
+
         setGrades(newGrades);
         setTeacherToEdit(null);
 

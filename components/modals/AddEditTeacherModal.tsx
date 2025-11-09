@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Grade, Subject, Teacher } from '../../types';
 import { XCircleIcon } from '../Icons';
@@ -10,39 +11,50 @@ export const AddEditTeacherModal: React.FC<{
     allGrades: Grade[];
     allSubjects: Subject[];
     onClose: () => void;
-    onSave: (data: { id: string | null; name: string; subjectIds: string[]; gradeIds: number[] }) => void;
+    onSave: (data: { id: string | null; name: string; assignments: Record<string, number[]> }) => void;
 }> = ({ teacherToEdit, allTeachers, allGrades, allSubjects, onClose, onSave }) => {
     const [name, setName] = useState(teacherToEdit?.name || '');
-    const [selectedGrades, setSelectedGrades] = useState<number[]>([]);
-    const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+    const [assignments, setAssignments] = useState<Record<string, number[]>>({});
 
     useEffect(() => {
         if (teacherToEdit) {
-            const gradeIds: number[] = [];
-            const subjectIds: string[] = [];
-            allGrades.forEach(g => {
-                g.assignments.forEach(a => {
-                    if (a.teacherId === teacherToEdit.id) {
-                        gradeIds.push(g.id);
-                        subjectIds.push(a.subjectId);
+            const initialAssignments: Record<string, number[]> = {};
+            allGrades.forEach(grade => {
+                grade.assignments.forEach(assignment => {
+                    if (assignment.teacherId === teacherToEdit.id) {
+                        if (!initialAssignments[assignment.subjectId]) {
+                            initialAssignments[assignment.subjectId] = [];
+                        }
+                        if (!initialAssignments[assignment.subjectId].includes(grade.id)) {
+                           initialAssignments[assignment.subjectId].push(grade.id);
+                        }
                     }
                 });
             });
-            setSelectedGrades([...new Set(gradeIds)]);
-            setSelectedSubjects([...new Set(subjectIds)]);
+            setAssignments(initialAssignments);
         }
     }, [teacherToEdit, allGrades]);
 
-    const handleGradeToggle = (gradeId: number) => {
-        setSelectedGrades(prev => 
-            prev.includes(gradeId) ? prev.filter(id => id !== gradeId) : [...prev, gradeId]
-        );
-    };
-
-    const handleSubjectToggle = (subjectId: string) => {
-        setSelectedSubjects(prev =>
-            prev.includes(subjectId) ? prev.filter(id => id !== subjectId) : [...prev, subjectId]
-        );
+    const handleAssignmentToggle = (subjectId: string, gradeId: number) => {
+        setAssignments(prev => {
+            const newAssignments = { ...prev };
+            const gradesForSubject = newAssignments[subjectId] ? [...newAssignments[subjectId]] : [];
+            
+            const gradeIndex = gradesForSubject.indexOf(gradeId);
+            if (gradeIndex > -1) {
+                gradesForSubject.splice(gradeIndex, 1);
+            } else {
+                gradesForSubject.push(gradeId);
+            }
+    
+            if (gradesForSubject.length === 0) {
+                delete newAssignments[subjectId];
+            } else {
+                newAssignments[subjectId] = gradesForSubject;
+            }
+    
+            return newAssignments;
+        });
     };
 
     const handleSubmit = () => {
@@ -53,15 +65,14 @@ export const AddEditTeacherModal: React.FC<{
         onSave({
             id: teacherToEdit?.id || null,
             name: name.trim(),
-            gradeIds: selectedGrades,
-            subjectIds: selectedSubjects
+            assignments: assignments,
         });
     };
 
     const Checkbox: React.FC<{ label: string; checked: boolean; onChange: () => void }> = ({ label, checked, onChange }) => (
-        <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-gray-100">
+        <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-gray-100 transition-colors">
             <input type="checkbox" checked={checked} onChange={onChange} className="h-5 w-5" />
-            <span className="text-gray-800">{label}</span>
+            <span className="text-gray-800 font-semibold">{label}</span>
         </label>
     );
 
@@ -74,24 +85,27 @@ export const AddEditTeacherModal: React.FC<{
                 <h2 className="text-3xl font-bold text-gray-900 text-center mb-4 tracking-tight">
                     {teacherToEdit ? 'Editar Profesor' : 'Agregar Profesor'}
                 </h2>
-                <div className="overflow-y-auto pr-2 flex-grow">
+                <div className="overflow-y-auto pr-2 -mr-2 flex-grow">
                     <div className="mb-6">
                         <label htmlFor="teacherName" className="block text-xl font-bold text-gray-800 mb-2">Nombre del Profesor</label>
                         <input id="teacherName" type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 text-lg border-2 border-gray-200 rounded-lg" />
                     </div>
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <div>
-                            <h3 className="block text-xl font-bold text-gray-800 mb-2">Grados Asignados</h3>
-                            <div className="p-4 border border-gray-200 rounded-lg h-64 overflow-y-auto flex flex-col gap-1">
-                                {allGrades.map(g => <Checkbox key={g.id} label={g.name} checked={selectedGrades.includes(g.id)} onChange={() => handleGradeToggle(g.id)} />)}
+                     <div className="flex flex-col gap-6">
+                        {allSubjects.map(subject => (
+                            <div key={subject.id}>
+                                <h3 className="block text-xl font-bold text-gray-800 mb-2">{subject.name}</h3>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-1 p-4 border border-gray-200 rounded-lg">
+                                    {allGrades.map(grade => (
+                                        <Checkbox 
+                                            key={grade.id} 
+                                            label={grade.name} 
+                                            checked={(assignments[subject.id] || []).includes(grade.id)}
+                                            onChange={() => handleAssignmentToggle(subject.id, grade.id)}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                        <div>
-                            <h3 className="block text-xl font-bold text-gray-800 mb-2">Materias Asignadas</h3>
-                            <div className="p-4 border border-gray-200 rounded-lg h-64 overflow-y-auto flex flex-col gap-1">
-                                {allSubjects.map(s => <Checkbox key={s.id} label={s.name} checked={selectedSubjects.includes(s.id)} onChange={() => handleSubjectToggle(s.id)} />)}
-                            </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
                  <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end">
