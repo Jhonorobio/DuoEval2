@@ -292,6 +292,7 @@ const App: React.FC = () => {
             primaryQuestions={primaryQuestions}
             highSchoolQuestions={highSchoolQuestions}
             onDeleteAll={handleDeleteAllEvaluations}
+            onNavigateToVisualizer={() => setView('csvVisualizer')}
         />;
       case 'csvVisualizer':
         return <CsvVisualizerView onBack={() => setView('nameEntry')} />;

@@ -17,7 +17,7 @@ import {
 import { Evaluation, Grade, Teacher, Subject, Answer, EvaluationLevel, PrimaryRating } from '../types';
 import { PRIMARY_RATING_OPTIONS } from '../constants';
 import { downloadCSV } from '../utils/csv';
-import { ArrowLeftIcon, XCircleIcon, DownloadIcon } from '../components/Icons';
+import { ArrowLeftIcon, XCircleIcon, DownloadIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
 import { StatisticsAuthModal } from '../components/modals/StatisticsAuthModal';
@@ -31,9 +31,10 @@ interface StatisticsViewProps {
     primaryQuestions: string[];
     highSchoolQuestions: string[];
     onDeleteAll: () => Promise<void>;
+    onNavigateToVisualizer: () => void;
 }
 
-export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll }) => {
+export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
   const [selectedTeacherForAnalysis, setSelectedTeacherForAnalysis] = useState<string>('');
   const [selectedGradeForStudent, setSelectedGradeForStudent] = useState<string>('');
   const [selectedTeacherForStudent, setSelectedTeacherForStudent] = useState<string>('');
@@ -282,6 +283,13 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         </div>
         {evaluations.length > 0 && (
             <div className="flex items-center gap-2">
+                 <button 
+                    onClick={onNavigateToVisualizer}
+                    className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-purple-700 bg-purple-100 hover:bg-purple-200"
+                >
+                    <UploadCloudIcon className="w-5 h-5 mr-2" />
+                    Visualizar CSV
+                </button>
                 <button 
                     onClick={handleExportAllData}
                     className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-sky-700 bg-sky-100 hover:bg-sky-200"
