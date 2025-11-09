@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   BarChart,
@@ -18,7 +17,7 @@ import {
 import { Evaluation, Grade, Teacher, Subject, Answer, EvaluationLevel, PrimaryRating } from '../types';
 import { PRIMARY_RATING_OPTIONS } from '../constants';
 import { downloadCSV } from '../utils/csv';
-import { ArrowLeftIcon, XCircleIcon } from '../components/Icons';
+import { ArrowLeftIcon, XCircleIcon, DownloadIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
 import { StatisticsAuthModal } from '../components/modals/StatisticsAuthModal';
@@ -216,6 +215,43 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
       downloadCSV(formattedData, `respuestas_estudiantes_${gradeName.replace(/\s+/g, '_')}_${teacherName.replace(/\s+/g, '_')}.csv`);
   };
 
+  const handleExportAllData = () => {
+    const allData: any[] = [];
+
+    evaluations.forEach(evaluation => {
+        const grade = grades.find(g => g.id === evaluation.gradeId);
+        const teacher = teachers.find(t => t.id === evaluation.teacherId);
+        const subject = subjects.find(s => s.id === evaluation.subjectId);
+
+        if (!grade || !teacher || !subject) return;
+
+        const isPrimary = grade.level === EvaluationLevel.Primary;
+        const questions = isPrimary ? primaryQuestions : highSchoolQuestions;
+
+        evaluation.answers.forEach((answer, index) => {
+            allData.push({
+                'ID Evaluación': evaluation.id,
+                'Estudiante': evaluation.studentName,
+                'Grado': grade.name,
+                'Profesor': teacher.name,
+                'Materia': subject.name,
+                'Nivel': grade.level,
+                'Fecha': new Date(evaluation.timestamp).toLocaleString(),
+                'Nº Pregunta': index + 1,
+                'Pregunta': questions[index] || 'N/A',
+                'Respuesta': formatAnswer(answer, isPrimary),
+                'Puntaje': getScore(answer, isPrimary),
+            });
+        });
+    });
+
+    if (allData.length > 0) {
+        downloadCSV(allData, 'estadisticas_completas_evaluacion.csv');
+    } else {
+        alert('No hay datos para exportar.');
+    }
+  };
+
   if (evaluations.length === 0) {
     return (
         <div className="animate-fade">
@@ -245,13 +281,22 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
             <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight m-0">Estadísticas</h1>
         </div>
         {evaluations.length > 0 && (
-             <button 
-                onClick={() => setDeleteConfirmVisible(true)}
-                className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-red-600 bg-red-100 hover:bg-red-200"
-            >
-                <XCircleIcon className="w-5 h-5 mr-2" />
-                Borrar Todos los Datos
-            </button>
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={handleExportAllData}
+                    className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-sky-700 bg-sky-100 hover:bg-sky-200"
+                >
+                    <DownloadIcon className="w-5 h-5 mr-2" />
+                    Descargar Todo
+                </button>
+                <button 
+                    onClick={() => setDeleteConfirmVisible(true)}
+                    className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-red-600 bg-red-100 hover:bg-red-200"
+                >
+                    <XCircleIcon className="w-5 h-5 mr-2" />
+                    Borrar Todos los Datos
+                </button>
+            </div>
         )}
       </div>
 
