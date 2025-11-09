@@ -192,6 +192,13 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     setAiSummary(null);
     setSummaryError(null);
 
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      setSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+      setIsGeneratingSummary(false);
+      return;
+    }
+
     const teacherName = teachers.find(t => t.id === selectedTeacherForAnalysis)?.name;
     const isPrimary = teacherAnalysisTab === 'primary';
     const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
@@ -218,7 +225,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     `;
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+      const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -243,22 +250,28 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
 
   const gradeForStudentAnalysis = grades.find(g => g.id.toString() === selectedGradeForStudent);
 
-  const handleExportPrimaryGeneral = () => {
-    const formattedData = primaryGeneralData.map(item => ({
+  const handleExportGeneralCombined = () => {
+    const primaryFormatted = primaryGeneralData.map(item => ({
         'Profesor': item.name,
         'Calificación Promedio': item['Calificación Promedio'],
-        'Total de Encuestas': item['Total de Encuestas']
+        'Total de Encuestas': item['Total de Encuestas'],
+        'Nivel': 'Primaria'
     }));
-    downloadCSV(formattedData, 'calificacion_general_primaria.csv');
-  };
 
-  const handleExportHighSchoolGeneral = () => {
-      const formattedData = highSchoolGeneralData.map(item => ({
-          'Profesor': item.name,
-          'Calificación Promedio': item['Calificación Promedio'],
-          'Total de Encuestas': item['Total de Encuestas']
-      }));
-      downloadCSV(formattedData, 'calificacion_general_bachillerato.csv');
+    const highSchoolFormatted = highSchoolGeneralData.map(item => ({
+        'Profesor': item.name,
+        'Calificación Promedio': item['Calificación Promedio'],
+        'Total de Encuestas': item['Total de Encuestas'],
+        'Nivel': 'Bachillerato'
+    }));
+
+    const combinedData = [...primaryFormatted, ...highSchoolFormatted];
+    
+    if (combinedData.length > 0) {
+        downloadCSV(combinedData, 'calificacion_general_combinada.csv');
+    } else {
+        alert('No hay datos generales para exportar.');
+    }
   };
 
   const handleExportTeacherAnalysis = () => {
@@ -464,7 +477,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
 
       <Section 
         title="Calificación General" 
-        onExport={activeGeneralTab === 'primary' ? handleExportPrimaryGeneral : handleExportHighSchoolGeneral}
+        onExport={handleExportGeneralCombined}
       >
         <div className="flex border-b border-gray-200 mb-4">
             <button

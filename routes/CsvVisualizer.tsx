@@ -16,6 +16,9 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
     const [chartType, setChartType] = useState<'bar' | 'radar'>('bar');
     const [teacherViewLevel, setTeacherViewLevel] = useState<'Primaria' | 'Bachillerato'>('Primaria');
 
+    // State for general view tab
+    const [visualizerGeneralTab, setVisualizerGeneralTab] = useState<'primary' | 'highSchool'>('primary');
+
     // State for comprehensive view filters
     const [comprehensiveTeacher, setComprehensiveTeacher] = useState<string>('');
     const [comprehensiveTeacherLevel, setComprehensiveTeacherLevel] = useState<'PRIMARY' | 'HIGH_SCHOOL'>('PRIMARY');
@@ -44,6 +47,18 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherFileAiSummary(null);
         setTeacherFileSummaryError(null);
     }, [teacherViewLevel]);
+
+    useEffect(() => {
+        if (dataType === 'general' && parsedData) {
+            const hasPrimary = parsedData.some(d => d['Nivel'] === 'Primaria');
+            const hasHighSchool = parsedData.some(d => d['Nivel'] === 'Bachillerato');
+            if (hasPrimary) {
+                setVisualizerGeneralTab('primary');
+            } else if (hasHighSchool) {
+                setVisualizerGeneralTab('highSchool');
+            }
+        }
+    }, [dataType, parsedData]);
 
 
     const processCsv = (csvText: string) => {
@@ -167,6 +182,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherFileAiSummary(null);
         setIsGeneratingTeacherFileSummary(false);
         setTeacherFileSummaryError(null);
+        setVisualizerGeneralTab('primary');
     };
 
     const teacherLevels = useMemo(() => {
@@ -298,6 +314,13 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setIsGeneratingGeneralSummary(true);
         setGeneralAiSummary(null);
         setGeneralSummaryError(null);
+        
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            setGeneralSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+            setIsGeneratingGeneralSummary(false);
+            return;
+        }
 
         const { primaryData, highSchoolData } = comprehensiveData;
 
@@ -327,7 +350,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
@@ -346,6 +369,13 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setIsGeneratingTeacherSummary(true);
         setTeacherAiSummary(null);
         setTeacherSummaryError(null);
+        
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            setTeacherSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+            setIsGeneratingTeacherSummary(false);
+            return;
+        }
 
         const { teacherSpecificChartData, teacherLevel } = comprehensiveData;
         const isPrimary = teacherLevel === 'PRIMARY';
@@ -371,7 +401,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
@@ -391,6 +421,13 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setIsGeneratingTeacherFileSummary(true);
         setTeacherFileAiSummary(null);
         setTeacherFileSummaryError(null);
+        
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            setTeacherFileSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+            setIsGeneratingTeacherFileSummary(false);
+            return;
+        }
 
         const filteredTeacherData = parsedData.filter(d => 
             teacherViewAvailableLevels.size === 0 || d['Nivel'] === teacherViewLevel
@@ -432,7 +469,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            const ai = new GoogleGenAI({ apiKey });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
@@ -513,25 +550,85 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         
         switch (dataType) {
             case 'general':
-                const generalChartData = parsedData.map(d => ({
-                    name: d['Profesor'],
-                    'Calificación Promedio': parseFloat(d['Calificación Promedio']),
-                    'Total de Encuestas': parseInt(d['Total de Encuestas'], 10)
-                }));
-                const isPrimary = fileName?.includes('primaria');
+                const generalPrimaryData = parsedData
+                    .filter(d => d['Nivel'] === 'Primaria')
+                    .map(d => ({
+                        name: d['Profesor'],
+                        'Calificación Promedio': parseFloat(d['Calificación Promedio']),
+                        'Total de Encuestas': parseInt(d['Total de Encuestas'], 10)
+                    }));
+                
+                const generalHighSchoolData = parsedData
+                    .filter(d => d['Nivel'] === 'Bachillerato')
+                    .map(d => ({
+                        name: d['Profesor'],
+                        'Calificación Promedio': parseFloat(d['Calificación Promedio']),
+                        'Total de Encuestas': parseInt(d['Total de Encuestas'], 10)
+                    }));
+
                 return (
-                    <ResponsiveContainer width="100%" height={400}>
-                       <BarChart data={generalChartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                          <YAxis yAxisId="left" stroke={isPrimary ? "#3b82f6" : "#8b5cf6"} domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
-                          <YAxis yAxisId="right" orientation="right" stroke={isPrimary ? "#10b981" : "#ec4899"} dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
-                          <Tooltip />
-                          <Legend />
-                          <Bar yAxisId="left" dataKey="Calificación Promedio" fill={isPrimary ? "#3b82f6" : "#8b5cf6"} />
-                          <Bar yAxisId="right" dataKey="Total de Encuestas" fill={isPrimary ? "#10b981" : "#ec4899"} />
-                       </BarChart>
-                    </ResponsiveContainer>
+                    <>
+                        <div className="flex border-b border-gray-200 mb-4">
+                            {generalPrimaryData.length > 0 && (
+                                <button
+                                    onClick={() => setVisualizerGeneralTab('primary')}
+                                    className={`py-3 px-6 text-xl font-bold transition-colors duration-200 outline-none ${
+                                        visualizerGeneralTab === 'primary'
+                                            ? 'border-b-4 border-blue-500 text-blue-600'
+                                            : 'text-gray-500 hover:text-gray-800'
+                                    }`}
+                                >
+                                    Primaria
+                                </button>
+                            )}
+                             {generalHighSchoolData.length > 0 && (
+                                <button
+                                    onClick={() => setVisualizerGeneralTab('highSchool')}
+                                    className={`py-3 px-6 text-xl font-bold transition-colors duration-200 outline-none ${
+                                        visualizerGeneralTab === 'highSchool'
+                                            ? 'border-b-4 border-purple-500 text-purple-600'
+                                            : 'text-gray-500 hover:text-gray-800'
+                                    }`}
+                                >
+                                    Bachillerato
+                                </button>
+                            )}
+                        </div>
+        
+                        {visualizerGeneralTab === 'primary' && generalPrimaryData.length > 0 && (
+                            <div className="animate-fade h-96">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={generalPrimaryData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
+                                        <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 3]} ticks={[0,1,2,3]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                                        <YAxis yAxisId="right" orientation="right" stroke="#10b981" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar yAxisId="left" dataKey="Calificación Promedio" fill="#3b82f6" />
+                                        <Bar yAxisId="right" dataKey="Total de Encuestas" fill="#10b981" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+        
+                        {visualizerGeneralTab === 'highSchool' && generalHighSchoolData.length > 0 && (
+                            <div className="animate-fade h-96">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={generalHighSchoolData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
+                                        <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 4]} ticks={[0,1,2,3,4]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                                        <YAxis yAxisId="right" orientation="right" stroke="#ec4899" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar yAxisId="left" dataKey="Calificación Promedio" fill="#8b5cf6" />
+                                        <Bar yAxisId="right" dataKey="Total de Encuestas" fill="#ec4899" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </>
                 );
             case 'teacher':
                 const filteredTeacherData = parsedData.filter(d => 
