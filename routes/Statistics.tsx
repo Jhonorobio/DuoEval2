@@ -35,6 +35,7 @@ interface StatisticsViewProps {
 }
 
 export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
+  const [activeGeneralTab, setActiveGeneralTab] = useState<'primary' | 'highSchool'>('primary');
   const [selectedTeacherForAnalysis, setSelectedTeacherForAnalysis] = useState<string>('');
   const [selectedGradeForStudent, setSelectedGradeForStudent] = useState<string>('');
   const [selectedTeacherForStudent, setSelectedTeacherForStudent] = useState<string>('');
@@ -308,34 +309,66 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         )}
       </div>
 
-      <Section title="Calificación General (Primaria)" onExport={handleExportPrimaryGeneral}>
-        <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={primaryGeneralData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
-                <YAxis yAxisId="right" orientation="right" stroke="#10b981" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left" dataKey="Calificación Promedio" fill="#3b82f6" />
-                <Bar yAxisId="right" dataKey="Total de Encuestas" fill="#10b981" />
-            </BarChart>
-        </ResponsiveContainer>
-      </Section>
+      <Section 
+        title="Calificación General" 
+        onExport={activeGeneralTab === 'primary' ? handleExportPrimaryGeneral : handleExportHighSchoolGeneral}
+      >
+        <div className="flex border-b border-gray-200 mb-4">
+            <button
+                onClick={() => setActiveGeneralTab('primary')}
+                className={`py-3 px-6 text-xl font-bold transition-colors duration-200 outline-none ${
+                    activeGeneralTab === 'primary'
+                        ? 'border-b-4 border-blue-500 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-800'
+                }`}
+            >
+                Primaria
+            </button>
+            <button
+                onClick={() => setActiveGeneralTab('highSchool')}
+                className={`py-3 px-6 text-xl font-bold transition-colors duration-200 outline-none ${
+                    activeGeneralTab === 'highSchool'
+                        ? 'border-b-4 border-purple-500 text-purple-600'
+                        : 'text-gray-500 hover:text-gray-800'
+                }`}
+            >
+                Bachillerato
+            </button>
+        </div>
 
-      <Section title="Calificación General (Bachillerato)" onExport={handleExportHighSchoolGeneral}>
-        <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={highSchoolGeneralData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
-                <YAxis yAxisId="right" orientation="right" stroke="#ec4899" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
-                <Tooltip />
-                <Legend />
-                <Bar yAxisId="left" dataKey="Calificación Promedio" fill="#8b5cf6" />
-                <Bar yAxisId="right" dataKey="Total de Encuestas" fill="#ec4899" />
-            </BarChart>
-        </ResponsiveContainer>
+        {activeGeneralTab === 'primary' && (
+            <div className="animate-fade">
+                <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={primaryGeneralData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
+                        <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                        <YAxis yAxisId="right" orientation="right" stroke="#10b981" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
+                        <Tooltip />
+                        <Legend />
+                        <Bar yAxisId="left" dataKey="Calificación Promedio" fill="#3b82f6" />
+                        <Bar yAxisId="right" dataKey="Total de Encuestas" fill="#10b981" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        )}
+
+        {activeGeneralTab === 'highSchool' && (
+            <div className="animate-fade">
+                <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={highSchoolGeneralData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
+                        <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                        <YAxis yAxisId="right" orientation="right" stroke="#ec4899" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
+                        <Tooltip />
+                        <Legend />
+                        <Bar yAxisId="left" dataKey="Calificación Promedio" fill="#8b5cf6" />
+                        <Bar yAxisId="right" dataKey="Total de Encuestas" fill="#ec4899" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        )}
       </Section>
       
       <Section title="Análisis por Profesor" onExport={selectedTeacherForAnalysis ? handleExportTeacherAnalysis : undefined}>
