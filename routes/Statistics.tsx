@@ -41,6 +41,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   const [selectedTeacherForStudent, setSelectedTeacherForStudent] = useState<string>('');
   const [teacherChartType, setTeacherChartType] = useState<'bar' | 'radar'>('bar');
   const [isDeleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [teacherAnalysisTab, setTeacherAnalysisTab] = useState<'primary' | 'highSchool'>('primary');
 
   const teachersInSelectedGrade = useMemo(() => {
     if (!selectedGradeForStudent) return [];
@@ -118,17 +119,41 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     return { primaryGeneralData: primaryData, highSchoolGeneralData: highSchoolData };
   }, [evaluations, teachers, grades]);
 
+  const teacherLevels = useMemo(() => {
+    const levels = new Set<EvaluationLevel>();
+    if (!selectedTeacherForAnalysis) return levels;
+
+    evaluations.forEach(e => {
+        if (e.teacherId === selectedTeacherForAnalysis) {
+            const grade = grades.find(g => g.id === e.gradeId);
+            if (grade) levels.add(grade.level as EvaluationLevel);
+        }
+    });
+    return levels;
+  }, [selectedTeacherForAnalysis, evaluations, grades]);
+
+  useEffect(() => {
+    if (teacherLevels.has(EvaluationLevel.Primary)) {
+      setTeacherAnalysisTab('primary');
+    } else if (teacherLevels.has(EvaluationLevel.HighSchool)) {
+      setTeacherAnalysisTab('highSchool');
+    }
+  }, [teacherLevels]);
+
   const teacherAnalysisData = useMemo(() => {
     if (!selectedTeacherForAnalysis) return [];
     
-    const filteredEvals = evaluations.filter(e => e.teacherId === selectedTeacherForAnalysis);
-    if (filteredEvals.length === 0) return [];
+    const isPrimary = teacherAnalysisTab === 'primary';
+    const targetLevel = isPrimary ? EvaluationLevel.Primary : EvaluationLevel.HighSchool;
     
-    const firstEval = filteredEvals[0];
-    const grade = grades.find(g => g.id === firstEval.gradeId);
-    if (!grade) return [];
+    const filteredEvals = evaluations.filter(e => {
+        if (e.teacherId !== selectedTeacherForAnalysis) return false;
+        const grade = grades.find(g => g.id === e.gradeId);
+        return grade?.level === targetLevel;
+    });
 
-    const isPrimary = grade.level === EvaluationLevel.Primary;
+    if (filteredEvals.length === 0) return [];
+
     const questions = isPrimary ? primaryQuestions : highSchoolQuestions;
     
     return questions.map((q, index) => {
@@ -141,7 +166,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         fullQuestion: q,
       };
     });
-  }, [evaluations, selectedTeacherForAnalysis, primaryQuestions, highSchoolQuestions, grades]);
+  }, [evaluations, selectedTeacherForAnalysis, primaryQuestions, highSchoolQuestions, grades, teacherAnalysisTab]);
   
   const studentAnalysisData = useMemo(() => {
     if (!selectedGradeForStudent || !selectedTeacherForStudent) return [];
@@ -157,13 +182,6 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
       }
       return answer;
   }
-  
-  const levelForTeacherAnalysis = useMemo(() => {
-    if (!selectedTeacherForAnalysis) return EvaluationLevel.Primary;
-    const firstEval = evaluations.find(e => e.teacherId === selectedTeacherForAnalysis);
-    if (!firstEval) return EvaluationLevel.Primary;
-    return grades.find(g => g.id === firstEval.gradeId)?.level || EvaluationLevel.Primary;
-  }, [evaluations, selectedTeacherForAnalysis, grades]);
 
   const gradeForStudentAnalysis = grades.find(g => g.id.toString() === selectedGradeForStudent);
 
@@ -188,13 +206,14 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   const handleExportTeacherAnalysis = () => {
       if (!selectedTeacherForAnalysis) return;
       const teacherName = teachers.find(t => t.id === selectedTeacherForAnalysis)?.name || 'desconocido';
+      const level = teacherAnalysisTab === 'primary' ? 'primaria' : 'bachillerato';
 
       const formattedData = teacherAnalysisData.map((item) => ({
           'Pregunta': item.fullQuestion,
           'Puntaje Promedio': item.score,
       }));
 
-      downloadCSV(formattedData, `analisis_profesor_${teacherName.replace(/\s+/g, '_')}.csv`);
+      downloadCSV(formattedData, `analisis_${level}_profesor_${teacherName.replace(/\s+/g, '_')}.csv`);
   };
 
   const handleExportStudentAnalysis = () => {
@@ -253,6 +272,45 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         alert('No hay datos para exportar.');
     }
   };
+
+  const renderTeacherChart = (isPrimary: boolean) => {
+    const maxScore = isPrimary ? 3 : 4;
+    const barColor = isPrimary ? "#82ca9d" : "#8884d8";
+    const radarStroke = isPrimary ? "#34d399" : "#a78bfa";
+    const radarFill = isPrimary ? "#a7f3d0" : "#d8b4fe";
+
+    return (
+        <div className="mt-6">
+            {teacherChartType === 'bar' ? (
+                <div className="w-full h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={teacherAnalysisData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="question" />
+                            <YAxis domain={[0, maxScore]} />
+                            <Tooltip content={<ChartTooltipWithFullQuestion />} />
+                            <Legend />
+                            <Bar dataKey="score" fill={barColor} name={`Puntaje Promedio`} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            ) : (
+                <div className="w-full h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={teacherAnalysisData}>
+                            <PolarGrid />
+                            <PolarAngleAxis dataKey="question" />
+                            <PolarRadiusAxis angle={30} domain={[0, maxScore]} />
+                            <Radar name="Puntaje Promedio" dataKey="score" stroke={radarStroke} fill={radarFill} fillOpacity={0.6} />
+                            <Tooltip content={<ChartTooltipWithFullQuestion />} />
+                            <Legend />
+                        </RadarChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
+        </div>
+    );
+};
 
   if (evaluations.length === 0) {
     return (
@@ -342,7 +400,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
                     <BarChart data={primaryGeneralData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                        <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                        <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 3]} ticks={[0,1,2,3]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
                         <YAxis yAxisId="right" orientation="right" stroke="#10b981" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
                         <Tooltip />
                         <Legend />
@@ -359,7 +417,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
                     <BarChart data={highSchoolGeneralData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                        <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                        <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 4]} ticks={[0,1,2,3,4]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
                         <YAxis yAxisId="right" orientation="right" stroke="#ec4899" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
                         <Tooltip />
                         <Legend />
@@ -389,38 +447,38 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
             )}
           </div>
           {selectedTeacherForAnalysis && teacherAnalysisData.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-2xl font-semibold mb-2 text-gray-800">Calificación por Pregunta para {teachers.find(t=>t.id === selectedTeacherForAnalysis)?.name}</h3>
-                {teacherChartType === 'bar' ? (
-                     <div className="w-full h-96">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={teacherAnalysisData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="question" />
-                                <YAxis domain={[0, levelForTeacherAnalysis === EvaluationLevel.Primary ? 3 : 4]} />
-                                <Tooltip content={<ChartTooltipWithFullQuestion />} />
-                                <Legend />
-                                <Bar dataKey="score" fill={levelForTeacherAnalysis === EvaluationLevel.Primary ? "#82ca9d" : "#8884d8"} name={`Puntaje Promedio`} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                ) : (
-                    <div className="w-full h-96">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={teacherAnalysisData}>
-                                <PolarGrid />
-                                <PolarAngleAxis dataKey="question" />
-                                <PolarRadiusAxis angle={30} domain={[0, levelForTeacherAnalysis === EvaluationLevel.Primary ? 3 : 4]} />
-                                <Radar name="Puntaje Promedio" dataKey="score" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-                                <Tooltip content={<ChartTooltipWithFullQuestion />} />
-                                <Legend />
-                            </RadarChart>
-                        </ResponsiveContainer>
+              <>
+                 {teacherLevels.size > 1 && (
+                    <div className="flex border-b border-gray-200 mt-4">
+                        <button
+                            onClick={() => setTeacherAnalysisTab('primary')}
+                            className={`py-2 px-4 text-lg font-bold transition-colors duration-200 outline-none ${
+                                teacherAnalysisTab === 'primary' ? 'border-b-4 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                        >
+                            Análisis Primaria
+                        </button>
+                        <button
+                            onClick={() => setTeacherAnalysisTab('highSchool')}
+                             className={`py-2 px-4 text-lg font-bold transition-colors duration-200 outline-none ${
+                                teacherAnalysisTab === 'highSchool' ? 'border-b-4 border-purple-500 text-purple-600' : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                        >
+                            Análisis Bachillerato
+                        </button>
                     </div>
                 )}
-              </div>
+
+                {teacherAnalysisTab === 'primary' && renderTeacherChart(true)}
+                {teacherAnalysisTab === 'highSchool' && renderTeacherChart(false)}
+              </>
           )}
-          {selectedTeacherForAnalysis && teacherAnalysisData.length === 0 && <p className="text-center text-gray-500 mt-4">No hay datos para este profesor.</p>}
+          {selectedTeacherForAnalysis && teacherAnalysisData.length === 0 && teacherLevels.size > 0 && (
+             <p className="text-center text-gray-500 mt-4">No hay datos para este profesor en el nivel de {teacherAnalysisTab === 'primary' ? 'Primaria' : 'Bachillerato'}.</p>
+          )}
+          {selectedTeacherForAnalysis && teacherLevels.size === 0 && (
+            <p className="text-center text-gray-500 mt-4">No hay datos de evaluación para este profesor.</p>
+          )}
       </Section>
 
       <Section title="Análisis Detallado por Estudiante" onExport={studentAnalysisData.length > 0 ? handleExportStudentAnalysis : undefined}>
