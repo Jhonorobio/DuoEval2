@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Grade } from '../types';
+import { Grade, EvaluationLevel } from '../types';
 import { ArrowLeftIcon } from '../components/Icons';
 
 interface GradeSelectionViewProps {
@@ -11,6 +10,21 @@ interface GradeSelectionViewProps {
 }
 
 export const GradeSelectionView: React.FC<GradeSelectionViewProps> = ({ studentName, grades, onSelectGrade, onBack }) => {
+  const processedGrades = React.useMemo(() => {
+    const gradesCopy = [...grades];
+    // Manually add Preschool grade if it's not present in the data from the backend.
+    if (!gradesCopy.some(g => g.id === 0)) {
+      gradesCopy.push({
+        id: 0,
+        name: '0°',
+        level: EvaluationLevel.Primary,
+        assignments: [],
+      });
+    }
+    // Sort all grades by id to ensure "0°" comes first.
+    return gradesCopy.sort((a, b) => a.id - b.id);
+  }, [grades]);
+
   return (
     <div className="w-full text-center animate-fade">
         <div className="relative mb-6 text-center">
@@ -29,13 +43,20 @@ export const GradeSelectionView: React.FC<GradeSelectionViewProps> = ({ studentN
             <span className="flex-grow border-t border-gray-300"></span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {grades.map(grade => (
+        {processedGrades.map(grade => (
             <button
               key={grade.id}
               onClick={() => onSelectGrade(grade)}
               className="p-4 flex flex-col items-center justify-center h-32 bg-white rounded-2xl border-2 border-gray-200 border-b-8 text-center text-gray-800 transition-all duration-200 hover:bg-gray-50 hover:-translate-y-1 active:translate-y-0 active:border-b-4 active:bg-gray-100"
             >
-              <span className="text-5xl font-extrabold">{grade.name}</span>
+              {grade.name === '0°' ? (
+                <>
+                  <span className="text-5xl font-extrabold">{grade.name}</span>
+                  <span className="text-lg text-gray-500 -mt-2">preescolar</span>
+                </>
+              ) : (
+                <span className="text-5xl font-extrabold">{grade.name}</span>
+              )}
             </button>
         ))}
         </div>

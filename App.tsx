@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import supabase from './supabaseClient';
 import { Answer, Evaluation, EvaluationTarget, Grade, PrimaryRating, Teacher, Subject } from './types';
@@ -131,7 +132,7 @@ const App: React.FC = () => {
 
   const previousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
   };
 
