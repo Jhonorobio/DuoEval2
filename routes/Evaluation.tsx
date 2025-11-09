@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Answer, EvaluationLevel, EvaluationTarget, PrimaryRating, HighSchoolRating } from '../types';
 import { XIcon } from '../components/Icons';
@@ -44,7 +43,7 @@ export const EvaluationView: React.FC<EvaluationViewProps> = ({ target, question
           <p className="text-2xl text-gray-500 font-bold tracking-wider mb-2">
             Pregunta {questionIndex} de {totalQuestions}
           </p>
-          <h1 className="text-4xl md:text-5xl leading-tight font-extrabold text-gray-900 max-w-4xl">
+          <h1 className="text-3xl md:text-4xl leading-tight font-extrabold text-gray-900 max-w-4xl">
             {question}
           </h1>
           <p className="text-2xl text-gray-600 mt-2">
