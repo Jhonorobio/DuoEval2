@@ -238,9 +238,9 @@ const App: React.FC = () => {
         setGrades(newGrades);
         setTeacherToEdit(null);
 
-      } catch (error) {
+      } catch (error: any) {
           console.error("Error saving teacher:", error);
-          alert("Hubo un error al guardar el profesor.");
+          alert(`Hubo un error al guardar el profesor: ${error.message}`);
       }
   };
 

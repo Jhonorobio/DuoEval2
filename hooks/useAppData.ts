@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect } from 'react';
 import supabase from '../supabaseClient';
 import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer, EvaluationLevel } from '../types';
@@ -40,28 +41,31 @@ export const useAppData = () => {
                     throw new Error('Failed to fetch data');
                 }
                 
+                let dbGrades = gradesRes.data;
+                // Ensure Preschool grade exists in the DB, otherwise creating assignments for it will fail.
+                if (!dbGrades.some(g => g.id === 0)) {
+                    const { data: newGrade, error: insertError } = await supabase
+                        .from('grades')
+                        .insert({ id: 0, name: '0°', level: 'PRIMARY' })
+                        .select()
+                        .single();
+                    if (insertError) {
+                        console.error("CRITICAL: Failed to create Preschool grade in DB. Assignments to this grade will fail.", insertError);
+                    } else if (newGrade) {
+                        dbGrades.push(newGrade);
+                    }
+                }
+
                 const assignmentsData: TeachingAssignment[] = assignmentsRes.data.map((a: any) => ({
                     teacherId: a.teacher_id,
                     subjectId: a.subject_id,
                     gradeId: a.grade_id,
                 }));
 
-                let gradesData: Grade[] = gradesRes.data.map((g: any) => ({
+                const gradesData: Grade[] = dbGrades.map((g: any) => ({
                     ...g,
                     assignments: assignmentsData.filter(a => (a as any).gradeId === g.id)
-                }));
-                
-                // Ensure Preschool grade exists and sort all grades
-                if (!gradesData.some(g => g.id === 0)) {
-                  gradesData.push({
-                    id: 0,
-                    name: '0°',
-                    level: EvaluationLevel.Primary,
-                    assignments: [],
-                  });
-                }
-                gradesData.sort((a, b) => a.id - b.id);
-
+                })).sort((a, b) => a.id - b.id);
 
                 setGrades(gradesData);
                 setTeachers(teachersRes.data);
