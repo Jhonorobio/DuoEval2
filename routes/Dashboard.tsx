@@ -90,31 +90,31 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {assignments.map(({ teacher, subject, isCompleted }) => {
                     return (
                         <div
                             key={`${teacher.id}-${subject.id}`}
-                            className={`bg-white rounded-2xl border-2 p-4 text-center flex flex-col justify-between ${isCompleted ? 'border-gray-200 bg-gray-50' : 'border-gray-200'}`}
+                            className={`bg-white rounded-2xl border-2 p-3 text-center flex flex-col justify-between ${isCompleted ? 'border-gray-200 bg-gray-50' : 'border-gray-200'}`}
                         >
-                            <div className="flex flex-col items-center flex-grow justify-center mb-4">
-                                <IconRenderer iconId={subject.iconId} iconUrl={subject.iconUrl} className={`w-14 h-14 ${isCompleted ? 'text-gray-400' : 'text-indigo-600'}`} />
-                                <p className={`font-extrabold text-4xl mt-3 ${isCompleted ? 'text-gray-600' : 'text-gray-900'}`}>{subject.name}</p>
-                                <p className="text-2xl text-gray-500">{teacher.name}</p>
+                            <div className="flex flex-col items-center flex-grow justify-center mb-3">
+                                <IconRenderer iconId={subject.iconId} iconUrl={subject.iconUrl} className={`w-12 h-12 ${isCompleted ? 'text-gray-400' : 'text-indigo-600'}`} />
+                                <p className={`font-extrabold text-3xl mt-2 ${isCompleted ? 'text-gray-600' : 'text-gray-900'}`}>{subject.name}</p>
+                                <p className="text-xl text-gray-500">{teacher.name}</p>
                             </div>
                             
                             {isCompleted ? (
                                 <button
                                     disabled
-                                    className="w-full flex items-center justify-center text-gray-600 font-extrabold uppercase text-xl py-3 rounded-2xl border-b-8 border-gray-300 bg-gray-200 cursor-not-allowed"
+                                    className="w-full flex items-center justify-center text-gray-600 font-extrabold uppercase text-lg py-2 rounded-2xl border-b-8 border-gray-300 bg-gray-200 cursor-not-allowed"
                                 >
-                                    <CheckCircleIcon className="w-6 h-6 mr-2" />
+                                    <CheckCircleIcon className="w-5 h-5 mr-2" />
                                     Completado
                                 </button>
                             ) : (
                                 <button
                                     onClick={() => onStartEvaluation({ grade, teacher, subject })}
-                                    className="w-full text-white font-extrabold uppercase text-xl py-3 rounded-2xl border-b-8 border-green-700 bg-green-500 transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0"
+                                    className="w-full text-white font-extrabold uppercase text-lg py-2 rounded-2xl border-b-8 border-green-700 bg-green-500 transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0"
                                 >
                                     Evaluar
                                 </button>

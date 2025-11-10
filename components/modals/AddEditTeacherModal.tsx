@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { Grade, Subject, Teacher } from '../../types';
 import { XCircleIcon } from '../Icons';
@@ -12,7 +10,7 @@ export const AddEditTeacherModal: React.FC<{
     allSubjects: Subject[];
     onClose: () => void;
     onSave: (data: { id: string | null; name: string; assignments: Record<string, number[]> }) => void;
-}> = ({ teacherToEdit, allTeachers, allGrades, allSubjects, onClose, onSave }) => {
+}> = ({ teacherToEdit, allGrades, allSubjects, onClose, onSave }) => {
     const [name, setName] = useState(teacherToEdit?.name || '');
     const [assignments, setAssignments] = useState<Record<string, number[]>>({});
 
@@ -68,13 +66,8 @@ export const AddEditTeacherModal: React.FC<{
             assignments: assignments,
         });
     };
-
-    const Checkbox: React.FC<{ label: string; checked: boolean; onChange: () => void }> = ({ label, checked, onChange }) => (
-        <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md hover:bg-gray-100 transition-colors">
-            <input type="checkbox" checked={checked} onChange={onChange} className="h-5 w-5" />
-            <span className="text-gray-800 font-semibold">{label}</span>
-        </label>
-    );
+    
+    const sortedGrades = [...allGrades].sort((a,b) => a.id - b.id);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -85,23 +78,27 @@ export const AddEditTeacherModal: React.FC<{
                 <h2 className="text-3xl font-bold text-gray-900 text-center mb-4 tracking-tight">
                     {teacherToEdit ? 'Editar Profesor' : 'Agregar Profesor'}
                 </h2>
-                <div className="overflow-y-auto pr-2 -mr-2 flex-grow">
-                    <div className="mb-6">
-                        <label htmlFor="teacherName" className="block text-xl font-bold text-gray-800 mb-2">Nombre del Profesor</label>
-                        <input id="teacherName" type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-3 text-lg border-2 border-gray-200 rounded-lg" />
-                    </div>
-                     <div className="flex flex-col gap-6">
+                <div className="mb-6">
+                    <label htmlFor="teacherName" className="block text-xl font-bold text-gray-800 mb-2">Nombre del Profesor</label>
+                    <input id="teacherName" type="text" value={name} onChange={e => setName(e.target.value)} className="w-full max-w-md p-3 text-lg border-2 border-gray-200 rounded-lg" />
+                </div>
+                <div className="flex-grow overflow-auto pr-2">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-3">Asignar Materias y Grados</h3>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {allSubjects.map(subject => (
-                            <div key={subject.id}>
-                                <h3 className="block text-xl font-bold text-gray-800 mb-2">{subject.name}</h3>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-x-4 gap-y-1 p-4 border border-gray-200 rounded-lg">
-                                    {allGrades.map(grade => (
-                                        <Checkbox 
-                                            key={grade.id} 
-                                            label={grade.name} 
-                                            checked={(assignments[subject.id] || []).includes(grade.id)}
-                                            onChange={() => handleAssignmentToggle(subject.id, grade.id)}
-                                        />
+                            <div key={subject.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <h4 className="font-bold text-lg text-gray-900 mb-3">{subject.name}</h4>
+                                <div className="flex flex-col gap-2">
+                                    {sortedGrades.map(grade => (
+                                        <label key={grade.id} className="flex items-center gap-2 cursor-pointer p-1 rounded hover:bg-gray-100">
+                                            <input
+                                                type="checkbox"
+                                                className="h-5 w-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                                                checked={(assignments[subject.id] || []).includes(grade.id)}
+                                                onChange={() => handleAssignmentToggle(subject.id, grade.id)}
+                                            />
+                                            <span className="text-gray-800">{grade.name}</span>
+                                        </label>
                                     ))}
                                 </div>
                             </div>
