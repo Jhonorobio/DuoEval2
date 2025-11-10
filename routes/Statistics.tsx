@@ -35,7 +35,8 @@ interface StatisticsViewProps {
     onNavigateToVisualizer: () => void;
 }
 
-const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno API_KEY en los ajustes de tu proyecto en Vercel (o tu plataforma de despliegue).';
+// Fix: Use a generic API key error message.
+const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada.';
 
 export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
   const [activeGeneralTab, setActiveGeneralTab] = useState<'primary' | 'highSchool'>('primary');
@@ -194,8 +195,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     setAiSummary(null);
     setSummaryError(null);
 
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
+    // Fix: Use process.env.API_KEY for the API key.
+    if (!process.env.API_KEY) {
       setSummaryError(API_KEY_ERROR_MESSAGE);
       setIsGeneratingSummary(false);
       return;
@@ -227,7 +228,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     `;
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,

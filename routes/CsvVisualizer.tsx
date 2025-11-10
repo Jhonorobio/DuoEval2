@@ -5,7 +5,8 @@ import { ArrowLeftIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
 
-const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno API_KEY en los ajustes de tu proyecto en Vercel (o tu plataforma de despliegue).';
+// Fix: Use a generic API key error message.
+const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada.';
 
 export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack }) => {
     const [fileName, setFileName] = useState<string | null>(null);
@@ -317,8 +318,8 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setGeneralAiSummary(null);
         setGeneralSummaryError(null);
         
-        const apiKey = process.env.API_KEY;
-        if (!apiKey) {
+        // Fix: Use process.env.API_KEY for the API key.
+        if (!process.env.API_KEY) {
             setGeneralSummaryError(API_KEY_ERROR_MESSAGE);
             setIsGeneratingGeneralSummary(false);
             return;
@@ -352,7 +353,8 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
 
         try {
-            const ai = new GoogleGenAI({ apiKey });
+            // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
@@ -372,8 +374,8 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherAiSummary(null);
         setTeacherSummaryError(null);
         
-        const apiKey = process.env.API_KEY;
-        if (!apiKey) {
+        // Fix: Use process.env.API_KEY for the API key.
+        if (!process.env.API_KEY) {
             setTeacherSummaryError(API_KEY_ERROR_MESSAGE);
             setIsGeneratingTeacherSummary(false);
             return;
@@ -403,7 +405,8 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            const ai = new GoogleGenAI({ apiKey });
+            // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
@@ -424,8 +427,8 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherFileAiSummary(null);
         setTeacherFileSummaryError(null);
         
-        const apiKey = process.env.API_KEY;
-        if (!apiKey) {
+        // Fix: Use process.env.API_KEY for the API key.
+        if (!process.env.API_KEY) {
             setTeacherFileSummaryError(API_KEY_ERROR_MESSAGE);
             setIsGeneratingTeacherFileSummary(false);
             return;
@@ -471,7 +474,8 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            const ai = new GoogleGenAI({ apiKey });
+            // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
