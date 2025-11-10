@@ -35,9 +35,7 @@ interface StatisticsViewProps {
     onNavigateToVisualizer: () => void;
 }
 
-// Fix: Use a generic API key error message.
-const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada.';
-
+// Fix: Removed API_KEY_ERROR_MESSAGE constant as API key presence is assumed from process.env.
 export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
   const [activeGeneralTab, setActiveGeneralTab] = useState<'primary' | 'highSchool'>('primary');
   const [selectedTeacherForAnalysis, setSelectedTeacherForAnalysis] = useState<string>('');
@@ -195,13 +193,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     setAiSummary(null);
     setSummaryError(null);
 
-    // Fix: Use process.env.API_KEY for the API key.
-    if (!process.env.API_KEY) {
-      setSummaryError(API_KEY_ERROR_MESSAGE);
-      setIsGeneratingSummary(false);
-      return;
-    }
-
+    // Fix: Removed API key check and switched to process.env.API_KEY.
     const teacherName = teachers.find(t => t.id === selectedTeacherForAnalysis)?.name;
     const isPrimary = teacherAnalysisTab === 'primary';
     const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
@@ -228,7 +220,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     `;
 
     try {
-      // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+      // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',

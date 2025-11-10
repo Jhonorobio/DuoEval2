@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -5,9 +6,7 @@ import { ArrowLeftIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
 
-// Fix: Use a generic API key error message.
-const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada.';
-
+// Fix: Removed API_KEY_ERROR_MESSAGE constant as API key presence is assumed from process.env.
 export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack }) => {
     const [fileName, setFileName] = useState<string | null>(null);
     const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -318,13 +317,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setGeneralAiSummary(null);
         setGeneralSummaryError(null);
         
-        // Fix: Use process.env.API_KEY for the API key.
-        if (!process.env.API_KEY) {
-            setGeneralSummaryError(API_KEY_ERROR_MESSAGE);
-            setIsGeneratingGeneralSummary(false);
-            return;
-        }
-
+        // Fix: Removed API key check and switched to process.env.API_KEY.
         const { primaryData, highSchoolData } = comprehensiveData;
 
         const formatData = (data: any[]) => 
@@ -353,7 +346,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
 
         try {
-            // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+            // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -374,13 +367,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherAiSummary(null);
         setTeacherSummaryError(null);
         
-        // Fix: Use process.env.API_KEY for the API key.
-        if (!process.env.API_KEY) {
-            setTeacherSummaryError(API_KEY_ERROR_MESSAGE);
-            setIsGeneratingTeacherSummary(false);
-            return;
-        }
-
+        // Fix: Removed API key check and switched to process.env.API_KEY.
         const { teacherSpecificChartData, teacherLevel } = comprehensiveData;
         const isPrimary = teacherLevel === 'PRIMARY';
         const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
@@ -405,7 +392,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+            // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -427,13 +414,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherFileAiSummary(null);
         setTeacherFileSummaryError(null);
         
-        // Fix: Use process.env.API_KEY for the API key.
-        if (!process.env.API_KEY) {
-            setTeacherFileSummaryError(API_KEY_ERROR_MESSAGE);
-            setIsGeneratingTeacherFileSummary(false);
-            return;
-        }
-
+        // Fix: Removed API key check and switched to process.env.API_KEY.
         const filteredTeacherData = parsedData.filter(d => 
             teacherViewAvailableLevels.size === 0 || d['Nivel'] === teacherViewLevel
         );
@@ -474,7 +455,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            // Fix: Initialize GoogleGenAI with process.env.API_KEY.
+            // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
