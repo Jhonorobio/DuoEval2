@@ -21,15 +21,13 @@ export const useAppData = () => {
             try {
                 const [
                     gradesRes,
-                    assignmentsRes,
                     teachersRes,
                     subjectsRes,
                     questionsRes,
                     settingsRes,
                     evaluationsRes
                 ] = await Promise.all([
-                    supabase.from('grades').select('*'),
-                    supabase.from('assignments').select('*'),
+                    supabase.from('grades').select('*, assignments(*)'),
                     supabase.from('teachers').select('*'),
                     supabase.from('subjects').select('*'),
                     supabase.from('questions').select('*').order('order'),
@@ -37,9 +35,12 @@ export const useAppData = () => {
                     supabase.from('evaluations').select('*')
                 ]);
 
-                if (gradesRes.error || assignmentsRes.error || teachersRes.error || subjectsRes.error || questionsRes.error || settingsRes.error || evaluationsRes.error) {
-                    throw new Error('Failed to fetch data');
-                }
+                if (gradesRes.error) throw new Error(`Error fetching grades: ${gradesRes.error.message}`);
+                if (teachersRes.error) throw new Error(`Error fetching teachers: ${teachersRes.error.message}`);
+                if (subjectsRes.error) throw new Error(`Error fetching subjects: ${subjectsRes.error.message}`);
+                if (questionsRes.error) throw new Error(`Error fetching questions: ${questionsRes.error.message}`);
+                if (settingsRes.error) throw new Error(`Error fetching settings: ${settingsRes.error.message}`);
+                if (evaluationsRes.error) throw new Error(`Error fetching evaluations: ${evaluationsRes.error.message}`);
                 
                 let dbGrades = gradesRes.data;
                 // Ensure Preschool grade exists in the DB, otherwise creating assignments for it will fail.
@@ -47,24 +48,23 @@ export const useAppData = () => {
                     const { data: newGrade, error: insertError } = await supabase
                         .from('grades')
                         .insert({ id: 0, name: '0°', level: 'PRIMARY' })
-                        .select()
+                        .select('*, assignments(*)')
                         .single();
                     if (insertError) {
                         console.error("CRITICAL: Failed to create Preschool grade in DB. Assignments to this grade will fail.", insertError);
                     } else if (newGrade) {
-                        dbGrades.push(newGrade);
+                        dbGrades.push(newGrade as any);
                     }
                 }
 
-                const assignmentsData: TeachingAssignment[] = assignmentsRes.data.map((a: any) => ({
-                    teacherId: a.teacher_id,
-                    subjectId: a.subject_id,
-                    gradeId: a.grade_id,
-                }));
-
                 const gradesData: Grade[] = dbGrades.map((g: any) => ({
-                    ...g,
-                    assignments: assignmentsData.filter(a => (a as any).gradeId === g.id)
+                    id: g.id,
+                    name: g.name,
+                    level: g.level as EvaluationLevel,
+                    assignments: g.assignments.map((a: any) => ({
+                        teacherId: a.teacher_id,
+                        subjectId: a.subject_id,
+                    } as TeachingAssignment))
                 })).sort((a, b) => a.id - b.id);
 
                 setGrades(gradesData);
