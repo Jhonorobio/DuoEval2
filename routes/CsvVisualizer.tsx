@@ -5,6 +5,8 @@ import { ArrowLeftIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
 
+const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno API_KEY en los ajustes de tu proyecto en Vercel (o tu plataforma de despliegue).';
+
 export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack }) => {
     const [fileName, setFileName] = useState<string | null>(null);
     const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -317,7 +319,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         
         const apiKey = process.env.API_KEY;
         if (!apiKey) {
-            setGeneralSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+            setGeneralSummaryError(API_KEY_ERROR_MESSAGE);
             setIsGeneratingGeneralSummary(false);
             return;
         }
@@ -372,7 +374,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         
         const apiKey = process.env.API_KEY;
         if (!apiKey) {
-            setTeacherSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+            setTeacherSummaryError(API_KEY_ERROR_MESSAGE);
             setIsGeneratingTeacherSummary(false);
             return;
         }
@@ -424,7 +426,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         
         const apiKey = process.env.API_KEY;
         if (!apiKey) {
-            setTeacherFileSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+            setTeacherFileSummaryError(API_KEY_ERROR_MESSAGE);
             setIsGeneratingTeacherFileSummary(false);
             return;
         }

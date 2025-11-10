@@ -35,6 +35,8 @@ interface StatisticsViewProps {
     onNavigateToVisualizer: () => void;
 }
 
+const API_KEY_ERROR_MESSAGE = 'La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno API_KEY en los ajustes de tu proyecto en Vercel (o tu plataforma de despliegue).';
+
 export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
   const [activeGeneralTab, setActiveGeneralTab] = useState<'primary' | 'highSchool'>('primary');
   const [selectedTeacherForAnalysis, setSelectedTeacherForAnalysis] = useState<string>('');
@@ -194,7 +196,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
 
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-      setSummaryError('La clave API de Google no está configurada. No se puede generar el resumen.');
+      setSummaryError(API_KEY_ERROR_MESSAGE);
       setIsGeneratingSummary(false);
       return;
     }
