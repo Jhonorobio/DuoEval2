@@ -6,7 +6,6 @@ import { ArrowLeftIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
 
-// Fix: Removed API_KEY_ERROR_MESSAGE constant as API key presence is assumed from process.env.
 export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack }) => {
     const [fileName, setFileName] = useState<string | null>(null);
     const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -317,7 +316,12 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setGeneralAiSummary(null);
         setGeneralSummaryError(null);
         
-        // Fix: Removed API key check and switched to process.env.API_KEY.
+        if (!process.env.API_KEY) {
+            setGeneralSummaryError("La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno VITE_API_KEY en tu plataforma de despliegue (ej. Vercel).");
+            setIsGeneratingGeneralSummary(false);
+            return;
+        }
+
         const { primaryData, highSchoolData } = comprehensiveData;
 
         const formatData = (data: any[]) => 
@@ -346,7 +350,6 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
 
         try {
-            // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -367,7 +370,12 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherAiSummary(null);
         setTeacherSummaryError(null);
         
-        // Fix: Removed API key check and switched to process.env.API_KEY.
+        if (!process.env.API_KEY) {
+            setTeacherSummaryError("La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno VITE_API_KEY en tu plataforma de despliegue (ej. Vercel).");
+            setIsGeneratingTeacherSummary(false);
+            return;
+        }
+        
         const { teacherSpecificChartData, teacherLevel } = comprehensiveData;
         const isPrimary = teacherLevel === 'PRIMARY';
         const levelText = isPrimary ? 'Primaria' : 'Bachillerato';
@@ -392,7 +400,6 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -414,7 +421,12 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         setTeacherFileAiSummary(null);
         setTeacherFileSummaryError(null);
         
-        // Fix: Removed API key check and switched to process.env.API_KEY.
+        if (!process.env.API_KEY) {
+            setTeacherFileSummaryError("La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno VITE_API_KEY en tu plataforma de despliegue (ej. Vercel).");
+            setIsGeneratingTeacherFileSummary(false);
+            return;
+        }
+        
         const filteredTeacherData = parsedData.filter(d => 
             teacherViewAvailableLevels.size === 0 || d['Nivel'] === teacherViewLevel
         );
@@ -455,7 +467,6 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         `;
         
         try {
-            // Fix: Replaced import.meta.env.VITE_API_KEY with process.env.API_KEY.
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',

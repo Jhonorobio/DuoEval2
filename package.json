@@ -13,7 +13,8 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "@supabase/supabase-js": "2.44.4",
-    "@google/genai": "latest"
+    "@google/genai": "latest",
+    "vite": "^7.2.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
