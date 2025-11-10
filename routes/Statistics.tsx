@@ -44,9 +44,17 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   const [teacherChartType, setTeacherChartType] = useState<'bar' | 'radar'>('bar');
   const [isDeleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [teacherAnalysisTab, setTeacherAnalysisTab] = useState<'primary' | 'highSchool'>('primary');
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
+  
+  // State for per-teacher AI summary
+  const [teacherAiSummary, setTeacherAiSummary] = useState<string | null>(null);
+  const [isGeneratingTeacherSummary, setIsGeneratingTeacherSummary] = useState(false);
+  const [teacherSummaryError, setTeacherSummaryError] = useState<string | null>(null);
+
+  // State for general AI summary
+  const [generalAiSummary, setGeneralAiSummary] = useState<string | null>(null);
+  const [isGeneratingGeneralSummary, setIsGeneratingGeneralSummary] = useState(false);
+  const [generalSummaryError, setGeneralSummaryError] = useState<string | null>(null);
+
 
   const teachersInSelectedGrade = useMemo(() => {
     if (!selectedGradeForStudent) return [];
@@ -61,8 +69,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   }, [selectedGradeForStudent]);
   
   useEffect(() => {
-    setAiSummary(null);
-    setSummaryError(null);
+    setTeacherAiSummary(null);
+    setTeacherSummaryError(null);
   }, [selectedTeacherForAnalysis, teacherAnalysisTab]);
 
   const getScore = (answer: Answer, isPrimary: boolean): number => {
@@ -186,16 +194,16 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     );
   }, [evaluations, selectedGradeForStudent, selectedTeacherForStudent]);
   
-  const handleGenerateSummary = async () => {
+  const handleGenerateTeacherSummary = async () => {
     if (!selectedTeacherForAnalysis || teacherAnalysisData.length === 0) return;
 
-    setIsGeneratingSummary(true);
-    setAiSummary(null);
-    setSummaryError(null);
+    setIsGeneratingTeacherSummary(true);
+    setTeacherAiSummary(null);
+    setTeacherSummaryError(null);
 
     if (!process.env.API_KEY) {
-        setSummaryError("La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno VITE_API_KEY en tu plataforma de despliegue (ej. Vercel).");
-        setIsGeneratingSummary(false);
+        setTeacherSummaryError("La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno VITE_API_KEY en tu plataforma de despliegue (ej. Vercel).");
+        setIsGeneratingTeacherSummary(false);
         return;
     }
 
@@ -231,15 +239,66 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         contents: prompt,
       });
 
-      setAiSummary(response.text);
+      setTeacherAiSummary(response.text);
 
     } catch (error) {
       console.error("Error generating AI summary:", error);
-      setSummaryError('Hubo un error al generar el resumen. Por favor, inténtalo de nuevo.');
+      setTeacherSummaryError('Hubo un error al generar el resumen. Por favor, inténtalo de nuevo.');
     } finally {
-      setIsGeneratingSummary(false);
+      setIsGeneratingTeacherSummary(false);
     }
   };
+
+    const handleGenerateGeneralSummary = async () => {
+        setIsGeneratingGeneralSummary(true);
+        setGeneralAiSummary(null);
+        setGeneralSummaryError(null);
+        
+        if (!process.env.API_KEY) {
+            setGeneralSummaryError("La clave API de Google no está configurada. Asegúrate de configurar la variable de entorno VITE_API_KEY en tu plataforma de despliegue (ej. Vercel).");
+            setIsGeneratingGeneralSummary(false);
+            return;
+        }
+
+        const formatData = (data: any[]) => 
+            data.map(d => `- ${d.name} (Promedio: ${d['Calificación Promedio']}, Encuestas: ${d['Total de Encuestas']})`).join('\n');
+
+        const primaryPromptData = primaryGeneralData.length > 0 ? formatData(primaryGeneralData) : 'No hay datos para Primaria.';
+        const highSchoolPromptData = highSchoolGeneralData.length > 0 ? formatData(highSchoolGeneralData) : 'No hay datos para Bachillerato.';
+
+        const prompt = `
+            Eres un director académico analizando los resultados de las evaluaciones docentes de la base de datos.
+            A continuación se presentan los promedios generales de los profesores en Primaria y Bachillerato.
+
+            Resultados de Primaria:
+            ${primaryPromptData}
+
+            Resultados de Bachillerato:
+            ${highSchoolPromptData}
+
+            Por favor, genera un análisis de alto nivel en español y formato Markdown que incluya:
+            1.  **Comparativa General**: Compara brevemente el desempeño general entre Primaria y Bachillerato. ¿Hay alguna tendencia notable?
+            2.  **Profesores Destacados**: Identifica 1 o 2 profesores con los resultados más altos en cada nivel (si aplica).
+            3.  **Áreas de Enfoque**: Identifica 1 o 2 profesores con los resultados más bajos que podrían necesitar más apoyo.
+            4.  **Recomendación Estratégica**: Basado en los datos, ¿qué recomendación general darías a la coordinación académica?
+
+            El tono debe ser profesional, objetivo y orientado a la toma de decisiones.
+        `;
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            setGeneralAiSummary(response.text);
+        } catch (error) {
+            console.error("Error generating general AI summary:", error);
+            setGeneralSummaryError('Hubo un error al generar el resumen general.');
+        } finally {
+            setIsGeneratingGeneralSummary(false);
+        }
+    };
 
   const formatAnswer = (answer: Answer, isPrimary: boolean): string | number => {
       if (isPrimary) {
@@ -475,6 +534,47 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         )}
       </div>
 
+      <Section title="Análisis General con IA">
+          <div className="flex justify-center">
+              <button
+                  onClick={handleGenerateGeneralSummary}
+                  disabled={isGeneratingGeneralSummary}
+                  className="flex items-center gap-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
+              >
+                  {isGeneratingGeneralSummary ? (
+                      <>
+                          <svg className="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Analizando Datos...
+                      </>
+                  ) : (
+                      <>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M12 3c-1.2 0-2.4.6-3 1.7A3.5 3.5 0 0 0 5.5 8c0 2 2 3.5 3.5 3.5s3.5-1.5 3.5-3.5A3.5 3.5 0 0 0 9 4.7c-.6-1.1-1.8-1.7-3-1.7Z"></path><path d="m12 12 1.4-1.4a2 2 0 0 1 2.8 0L17 11.4a2 2 0 0 1 0 2.8L12 20l-5-5a2 2 0 0 1 0-2.8l.8-.8a2 2 0 0 1 2.8 0L12 12v0Z"></path></svg>
+                          Generar Resumen General
+                      </>
+                  )}
+              </button>
+          </div>
+           {isGeneratingGeneralSummary && (
+              <div className="mt-6 text-center text-gray-600">
+                  <p>La IA está analizando los datos de todos los profesores, esto puede tardar unos segundos...</p>
+              </div>
+          )}
+          {generalSummaryError && (
+              <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert">
+                  <p className="font-bold">Error al generar resumen</p>
+                  <p>{generalSummaryError}</p>
+              </div>
+          )}
+           {generalAiSummary && (
+              <div className="mt-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{generalAiSummary}</pre>
+              </div>
+          )}
+      </Section>
+
       <Section 
         title="Calificación General" 
         onExport={handleExportGeneralCombined}
@@ -592,11 +692,11 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex justify-center">
                     <button
-                        onClick={handleGenerateSummary}
-                        disabled={isGeneratingSummary}
+                        onClick={handleGenerateTeacherSummary}
+                        disabled={isGeneratingTeacherSummary}
                         className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5 active:translate-y-0"
                     >
-                        {isGeneratingSummary ? (
+                        {isGeneratingTeacherSummary ? (
                             <>
                                 <svg className="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -613,22 +713,22 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
                     </button>
                 </div>
                 
-                {isGeneratingSummary && (
+                {isGeneratingTeacherSummary && (
                     <div className="mt-6 text-center text-gray-600">
                         <p>La IA está analizando los datos, esto puede tardar unos segundos...</p>
                     </div>
                 )}
 
-                {summaryError && (
+                {teacherSummaryError && (
                     <div className="mt-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg" role="alert">
                         <p className="font-bold">Error al generar resumen</p>
-                        <p>{summaryError}</p>
+                        <p>{teacherSummaryError}</p>
                     </div>
                 )}
                 
-                {aiSummary && (
+                {teacherAiSummary && (
                     <div className="mt-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
-                        <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{aiSummary}</pre>
+                        <pre className="whitespace-pre-wrap font-sans text-base text-gray-800">{teacherAiSummary}</pre>
                     </div>
                 )}
               </div>
