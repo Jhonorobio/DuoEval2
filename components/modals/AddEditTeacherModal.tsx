@@ -68,6 +68,7 @@ export const AddEditTeacherModal: React.FC<{
     };
     
     const sortedGrades = [...allGrades].sort((a,b) => a.id - b.id);
+    const sortedSubjects = [...allSubjects].sort((a, b) => a.name.localeCompare(b.name));
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -85,7 +86,7 @@ export const AddEditTeacherModal: React.FC<{
                 <div className="flex-grow overflow-auto pr-2">
                     <h3 className="text-2xl font-bold text-gray-800 mb-3">Asignar Materias y Grados</h3>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {allSubjects.map(subject => (
+                        {sortedSubjects.map(subject => (
                             <div key={subject.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                                 <h4 className="font-bold text-lg text-gray-900 mb-3">{subject.name}</h4>
                                 <div className="flex flex-col gap-2">
