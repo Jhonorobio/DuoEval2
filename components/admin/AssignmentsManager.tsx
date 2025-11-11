@@ -10,16 +10,13 @@ interface AssignmentsManagerProps {
 }
 
 export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({ grades, setGrades, teachers, subjects }) => {
-    const [view, setView] = useState<'grade' | 'subject'>('grade');
-    
     const sortedGrades = useMemo(() => [...grades].sort((a, b) => a.id - b.id), [grades]);
     const sortedSubjects = useMemo(() => [...subjects].sort((a, b) => a.name.localeCompare(b.name)), [subjects]);
     
     const [selectedGradeId, setSelectedGradeId] = useState<string>(sortedGrades[0]?.id.toString() ?? '');
-    const [selectedSubjectId, setSelectedSubjectId] = useState<string>(sortedSubjects[0]?.id ?? '');
 
-    const handleAssignmentChange = async (gradeIdStr: string, subjectId: string, newTeacherId: string) => {
-        const gradeId = parseInt(gradeIdStr, 10);
+    const handleAssignmentChange = async (subjectId: string, newTeacherId: string) => {
+        const gradeId = parseInt(selectedGradeId, 10);
         const finalTeacherId = newTeacherId === '' ? null : newTeacherId;
 
         try {
@@ -45,115 +42,52 @@ export const AssignmentsManager: React.FC<AssignmentsManagerProps> = ({ grades, 
         }
     };
     
-    const getTeacherFor = (gradeIdStr: string, subjectId: string): string => {
-        if (!gradeIdStr) return '';
-        const gradeId = parseInt(gradeIdStr, 10);
-        const grade = grades.find(g => g.id === gradeId);
-        const assignment = grade?.assignments.find(a => a.subjectId === subjectId);
-        return assignment?.teacherId || '';
-    };
-
-    const getTeacherForSubjectView = (subjectId: string, gradeIdStr: string): string => {
-        const gradeId = parseInt(gradeIdStr, 10);
+    const getTeacherFor = (subjectId: string): string => {
+        if (!selectedGradeId) return '';
+        const gradeId = parseInt(selectedGradeId, 10);
         const grade = grades.find(g => g.id === gradeId);
         const assignment = grade?.assignments.find(a => a.subjectId === subjectId);
         return assignment?.teacherId || '';
     };
     
     return (
-        <div className="max-w-7xl mx-auto">
-            <h3 className="text-3xl font-bold text-gray-800 mb-4">Gestionar Asignaciones</h3>
+        <div className="max-w-4xl mx-auto">
+            <h3 className="text-3xl font-bold text-gray-800 mb-4">Asignaciones por Grado</h3>
             <div className="bg-white p-6 rounded-lg border border-gray-200">
-                <div className="flex border-b border-gray-200 mb-4">
-                    <button
-                        onClick={() => setView('grade')}
-                        className={`py-3 px-6 text-xl font-bold transition-colors duration-200 outline-none ${view === 'grade' ? 'border-b-4 border-blue-500 text-blue-600' : 'text-gray-500 hover:text-gray-800'}`}
-                    >
-                        Por Grado
-                    </button>
-                    <button
-                        onClick={() => setView('subject')}
-                        className={`py-3 px-6 text-xl font-bold transition-colors duration-200 outline-none ${view === 'subject' ? 'border-b-4 border-purple-500 text-purple-600' : 'text-gray-500 hover:text-gray-800'}`}
-                    >
-                        Por Materia
-                    </button>
+                <div className="mb-6">
+                    <label htmlFor="grade-select" className="text-xl font-bold text-gray-700 mr-3">Selecciona un Grado:</label>
+                    <select id="grade-select" value={selectedGradeId} onChange={e => setSelectedGradeId(e.target.value)} className="p-3 text-lg border-2 border-gray-200 rounded-lg">
+                        {sortedGrades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
                 </div>
-
-                {view === 'grade' && (
-                    <div className="animate-fade-in-fast">
-                        <div className="mb-4">
-                            <label htmlFor="grade-select" className="text-lg font-bold text-gray-700 mr-2">Selecciona un Grado:</label>
-                            <select id="grade-select" value={selectedGradeId} onChange={e => setSelectedGradeId(e.target.value)} className="p-2 text-lg border-2 border-gray-200 rounded-lg">
-                                {sortedGrades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                            <table className="w-full text-left min-w-[600px]">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="p-3 text-lg font-bold text-gray-800">Materia</th>
-                                        <th className="p-3 text-lg font-bold text-gray-800">Profesor Asignado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sortedSubjects.map((subject, index) => (
-                                        <tr key={subject.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                            <td className="p-3 font-semibold text-gray-900">{subject.name}</td>
-                                            <td className="p-3">
-                                                <select
-                                                    value={getTeacherFor(selectedGradeId, subject.id)}
-                                                    onChange={e => handleAssignmentChange(selectedGradeId, subject.id, e.target.value)}
-                                                    className="w-full max-w-xs p-2 text-base border border-gray-300 rounded-md bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                                >
-                                                    <option value="">-- Sin Asignar --</option>
-                                                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-                
-                {view === 'subject' && (
-                     <div className="animate-fade-in-fast">
-                        <div className="mb-4">
-                            <label htmlFor="subject-select" className="text-lg font-bold text-gray-700 mr-2">Selecciona una Materia:</label>
-                            <select id="subject-select" value={selectedSubjectId} onChange={e => setSelectedSubjectId(e.target.value)} className="p-2 text-lg border-2 border-gray-200 rounded-lg">
-                                {sortedSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                             <table className="w-full text-left min-w-[600px]">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="p-3 text-lg font-bold text-gray-800">Grado</th>
-                                        <th className="p-3 text-lg font-bold text-gray-800">Profesor Asignado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sortedGrades.map((grade, index) => (
-                                        <tr key={grade.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                            <td className="p-3 font-semibold text-gray-900">{grade.name}</td>
-                                            <td className="p-3">
-                                                <select
-                                                    value={getTeacherForSubjectView(selectedSubjectId, grade.id.toString())}
-                                                    onChange={e => handleAssignmentChange(grade.id.toString(), selectedSubjectId, e.target.value)}
-                                                    className="w-full max-w-xs p-2 text-base border border-gray-300 rounded-md bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                                >
-                                                    <option value="">-- Sin Asignar --</option>
-                                                    {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-left min-w-[600px]">
+                        <thead className="bg-gray-100">
+                            <tr>
+                                <th className="p-4 text-lg font-bold text-gray-800">Materia</th>
+                                <th className="p-4 text-lg font-bold text-gray-800">Profesor Asignado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sortedSubjects.map((subject, index) => (
+                                <tr key={subject.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                    <td className="p-4 font-semibold text-gray-900">{subject.name}</td>
+                                    <td className="p-4">
+                                        <select
+                                            value={getTeacherFor(subject.id)}
+                                            onChange={e => handleAssignmentChange(subject.id, e.target.value)}
+                                            className="w-full max-w-xs p-2 text-base border border-gray-300 rounded-md bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                            aria-label={`Profesor para ${subject.name}`}
+                                        >
+                                            <option value="">-- Sin Asignar --</option>
+                                            {teachers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        </select>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

@@ -7,6 +7,7 @@ import { TeacherCard } from '../components/admin/TeacherCard';
 import { IconRenderer } from '../components/ui/IconRenderer';
 import { EditableQuestionList } from '../components/admin/EditableQuestionList';
 import { ConfirmationModal } from '../components/modals/ConfirmationModal';
+import { AssignmentsManager } from '../components/admin/AssignmentsManager';
 
 interface AdminViewProps {
     onBack: () => void;
@@ -34,7 +35,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         onEditSubjectIcon, onEditTeacher
     } = props;
     
-    const [adminSection, setAdminSection] = useState<'main' | 'teachers' | 'subjects' | 'questions'>('main');
+    const [adminSection, setAdminSection] = useState<'main' | 'teachers' | 'subjects' | 'questions' | 'assignments'>('main');
     const [newSubjectName, setNewSubjectName] = useState('');
     const [confirmModalState, setConfirmModalState] = useState<{
         isOpen: boolean;
@@ -298,13 +299,23 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                         />
                     </div>
                 );
+             case 'assignments':
+                return (
+                    <AssignmentsManager
+                        grades={grades}
+                        setGrades={setGrades}
+                        teachers={teachers}
+                        subjects={subjects}
+                    />
+                );
             case 'main':
             default:
                 return (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid md:grid-cols-2 gap-6">
                         <AdminMenuCard title="Gestionar Profesores" onClick={() => setAdminSection('teachers')} />
                         <AdminMenuCard title="Gestionar Materias" onClick={() => setAdminSection('subjects')} />
                         <AdminMenuCard title="Gestionar Preguntas" onClick={() => setAdminSection('questions')} />
+                        <AdminMenuCard title="Asignaciones por Grado" onClick={() => setAdminSection('assignments')} />
                     </div>
                 );
         }
