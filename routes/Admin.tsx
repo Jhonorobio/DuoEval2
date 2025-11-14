@@ -84,7 +84,11 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         const grade = grades.find(g => g.id === gradeId);
         if (!grade) return [];
 
-        const totalAssignments = grade.assignments.length;
+        const validAssignments = grade.assignments.filter(assignment => 
+            teachers.some(t => t.id === assignment.teacherId) && subjects.some(s => s.id === assignment.subjectId)
+        );
+
+        const totalAssignments = validAssignments.length;
         if (totalAssignments === 0) return [];
 
         const studentsInGrade = [...new Set(evaluations
@@ -103,9 +107,9 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                 );
             };
 
-            const completedCount = grade.assignments.filter(isAssignmentCompleted).length;
+            const completedCount = validAssignments.filter(isAssignmentCompleted).length;
 
-            const pendingAssignments = grade.assignments
+            const pendingAssignments = validAssignments
                 .filter(a => !isAssignmentCompleted(a))
                 .map(a => subjects.find(s => s.id === a.subjectId)?.name)
                 .filter((name): name is string => !!name);
@@ -117,7 +121,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                 pendingAssignments,
             };
         }).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    }, [selectedGradeForProgress, evaluations, grades, subjects]);
+    }, [selectedGradeForProgress, evaluations, grades, subjects, teachers]);
 
     const handleDeleteStudentData = () => {
         if (!selectedStudent) return;
