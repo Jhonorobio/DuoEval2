@@ -86,9 +86,16 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         const grade = grades.find(g => g.id === gradeId);
         if (!grade) return [];
 
-        const validAssignments = grade.assignments.filter(assignment => 
+        const allValidAssignments = grade.assignments.filter(assignment => 
             teachers.some(t => t.id === assignment.teacherId) && subjects.some(s => s.id === assignment.subjectId)
         );
+
+        // Create a unique set of assignments based on teacherId and subjectId to prevent bugs from duplicate data
+        const uniqueValidAssignmentsMap = new Map<string, { teacherId: string; subjectId: string }>();
+        allValidAssignments.forEach(a => {
+            uniqueValidAssignmentsMap.set(`${a.teacherId}-${a.subjectId}`, a);
+        });
+        const validAssignments = Array.from(uniqueValidAssignmentsMap.values());
 
         const totalAssignments = validAssignments.length;
         if (totalAssignments === 0) return [];
