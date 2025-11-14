@@ -146,9 +146,10 @@ const App: React.FC = () => {
         setCurrentEvaluationTarget(null);
 
         const assignmentsForGrade = grades.find(g => g.id === selectedGrade.id)?.assignments.length || 0;
-        const completedForGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id).length;
+        const studentEvaluationsInGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id);
+        const completedCount = new Set(studentEvaluationsInGrade.map(e => e.subjectId)).size;
 
-        if (completedForGrade >= assignmentsForGrade) {
+        if (completedCount >= assignmentsForGrade) {
           setView('finalCompletion');
         } else {
           setShowCompletionMessage(true);

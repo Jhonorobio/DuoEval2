@@ -96,9 +96,9 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
             const completedEvaluations = evaluations.filter(e => 
                 e.studentName === studentName && e.gradeId === gradeId
             );
-            const completedCount = completedEvaluations.length;
-
             const completedSubjectIds = new Set(completedEvaluations.map(e => e.subjectId));
+            const completedCount = completedSubjectIds.size;
+
             const pendingAssignments = grade.assignments
                 .filter(a => !completedSubjectIds.has(a.subjectId))
                 .map(a => subjects.find(s => s.id === a.subjectId)?.name)
