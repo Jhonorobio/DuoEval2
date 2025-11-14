@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import supabase from '../supabaseClient';
 import { Grade, Subject, Teacher, EvaluationLevel, Evaluation } from '../types';
 import { ArrowLeftIcon, XCircleIcon } from '../components/Icons';
@@ -8,6 +8,7 @@ import { IconRenderer } from '../components/ui/IconRenderer';
 import { EditableQuestionList } from '../components/admin/EditableQuestionList';
 import { ConfirmationModal } from '../components/modals/ConfirmationModal';
 import { AssignmentsManager } from '../components/admin/AssignmentsManager';
+import { StatisticsAuthModal } from '../components/modals/StatisticsAuthModal';
 
 interface AdminViewProps {
     onBack: () => void;
@@ -25,6 +26,8 @@ interface AdminViewProps {
     setEvaluations: React.Dispatch<React.SetStateAction<Evaluation[]>>;
     onEditSubjectIcon: (subject: Subject) => void;
     onEditTeacher: (teacher: Teacher | 'new') => void;
+    onDeleteStudentEvaluations: (studentName: string) => Promise<void>;
+    onStartEditEvaluation: (evaluation: Evaluation) => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = (props) => {
@@ -32,16 +35,63 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         onBack, grades, setGrades, teachers, setTeachers, subjects, setSubjects, 
         primaryQuestions, setPrimaryQuestions, highSchoolQuestions, setHighSchoolQuestions,
         evaluations, setEvaluations,
-        onEditSubjectIcon, onEditTeacher
+        onEditSubjectIcon, onEditTeacher,
+        onDeleteStudentEvaluations, onStartEditEvaluation
     } = props;
     
-    const [adminSection, setAdminSection] = useState<'main' | 'teachers' | 'subjects' | 'questions' | 'assignments'>('main');
+    const [adminSection, setAdminSection] = useState<'main' | 'teachers' | 'subjects' | 'questions' | 'assignments' | 'dataTools'>('main');
     const [newSubjectName, setNewSubjectName] = useState('');
     const [confirmModalState, setConfirmModalState] = useState<{
         isOpen: boolean;
         message: string;
         onConfirm: () => void;
     }>({ isOpen: false, message: '', onConfirm: () => {} });
+
+    const [selectedGradeForDataTools, setSelectedGradeForDataTools] = useState<string>('');
+    const [selectedStudent, setSelectedStudent] = useState<string>('');
+    const [evaluationForAuth, setEvaluationForAuth] = useState<Evaluation | null>(null);
+    const [isAuthModalVisible, setAuthModalVisible] = useState(false);
+
+    const studentsInSelectedGrade = useMemo(() => {
+        if (!selectedGradeForDataTools) return [];
+        const gradeId = parseInt(selectedGradeForDataTools, 10);
+        const studentNamesInGrade = evaluations
+            .filter(e => e.gradeId === gradeId)
+            .map(e => e.studentName);
+        return [...new Set(studentNamesInGrade)].sort();
+    }, [selectedGradeForDataTools, evaluations]);
+    
+    const evaluationsForSelectedStudent = useMemo(() => {
+        if (!selectedStudent) return [];
+        return evaluations
+            .filter(e => e.studentName === selectedStudent)
+            .filter(e => !selectedGradeForDataTools || e.gradeId === parseInt(selectedGradeForDataTools, 10))
+            .map(e => {
+                const teacher = teachers.find(t => t.id === e.teacherId);
+                const subject = subjects.find(s => s.id === e.subjectId);
+                const grade = grades.find(g => g.id === e.gradeId);
+                return { ...e, teacherName: teacher?.name, subjectName: subject?.name, gradeName: grade?.name };
+            })
+            .filter(e => e.teacherName && e.subjectName && e.gradeName);
+    }, [selectedStudent, selectedGradeForDataTools, evaluations, teachers, subjects, grades]);
+
+    const handleDeleteStudentData = () => {
+        if (!selectedStudent) return;
+        setConfirmModalState({
+            isOpen: true,
+            message: `¿Estás seguro de que quieres eliminar TODAS las evaluaciones de "${selectedStudent}"? Esta acción es irreversible.`,
+            onConfirm: async () => {
+                await onDeleteStudentEvaluations(selectedStudent);
+                setSelectedStudent('');
+                setConfirmModalState({ isOpen: false, message: '', onConfirm: () => {} });
+            },
+        });
+    };
+
+    const handleEditEvaluation = (evaluation: Evaluation) => {
+        setEvaluationForAuth(evaluation);
+        setAuthModalVisible(true);
+    };
 
     const handleRemoveTeacher = (teacherToRemove: Teacher) => {
         const isAssigned = grades.some(g => g.assignments.some(a => a.teacherId === teacherToRemove.id));
@@ -308,6 +358,81 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                         subjects={subjects}
                     />
                 );
+            case 'dataTools':
+                return (
+                    <div className="max-w-4xl mx-auto flex flex-col gap-8">
+                        <div>
+                            <h3 className="text-3xl font-bold text-gray-800 mb-4">Gestión de Evaluaciones por Estudiante</h3>
+                                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label htmlFor="grade-select-datatools" className="block text-xl font-bold text-gray-700 mb-2">1. Selecciona un Grado</label>
+                                            <select 
+                                                id="grade-select-datatools" 
+                                                value={selectedGradeForDataTools} 
+                                                onChange={e => {
+                                                    setSelectedGradeForDataTools(e.target.value);
+                                                    setSelectedStudent(''); // Reset student when grade changes
+                                                }}
+                                                className="w-full p-3 text-lg border-2 border-gray-200 rounded-lg"
+                                            >
+                                                <option value="">-- Selecciona un Grado --</option>
+                                                {[...grades].sort((a, b) => a.id - b.id).map(grade => <option key={grade.id} value={grade.id}>{grade.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label htmlFor="student-select" className="block text-xl font-bold text-gray-700 mb-2">2. Selecciona un Estudiante</label>
+                                            <select 
+                                                id="student-select" 
+                                                value={selectedStudent} 
+                                                onChange={e => setSelectedStudent(e.target.value)}
+                                                className="w-full p-3 text-lg border-2 border-gray-200 rounded-lg"
+                                                disabled={!selectedGradeForDataTools || studentsInSelectedGrade.length === 0}
+                                            >
+                                                <option value="">{studentsInSelectedGrade.length > 0 ? '-- Estudiantes --' : '-- No hay estudiantes --'}</option>
+                                                {studentsInSelectedGrade.map(name => <option key={name} value={name}>{name}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
+
+                        {selectedStudent && (
+                            <div className="animate-fade-in-fast">
+                                <h4 className="text-2xl font-bold text-gray-800 mb-4">Acciones para {selectedStudent}</h4>
+                                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                                    <h5 className="text-xl font-bold text-gray-900 mb-3">Editar Evaluaciones Realizadas</h5>
+                                    {evaluationsForSelectedStudent.length > 0 ? (
+                                        <ul className="list-none p-0 m-0 flex flex-col gap-2">
+                                            {evaluationsForSelectedStudent.map(e => (
+                                                <li key={e.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                    <div>
+                                                        <span className="font-bold text-gray-900">{e.teacherName}</span> - <span className="text-gray-700">{e.subjectName} ({e.gradeName})</span>
+                                                    </div>
+                                                    <button onClick={() => handleEditEvaluation(e as Evaluation)} className="text-sm font-bold py-2 px-4 rounded-lg transition-colors text-blue-600 bg-blue-100 hover:bg-blue-200">
+                                                        Editar
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-gray-500">Este estudiante no tiene evaluaciones completadas en este grado.</p>
+                                    )}
+                                </div>
+                                <div className="mt-6 bg-red-50 p-6 rounded-lg border border-red-200">
+                                    <h5 className="text-xl font-bold text-red-800 mb-2">Zona de Peligro</h5>
+                                    <p className="text-red-700 mb-4">Esta acción eliminará permanentemente todas las evaluaciones realizadas por este estudiante.</p>
+                                    <button 
+                                        onClick={handleDeleteStudentData}
+                                        className="font-bold py-2 px-5 rounded-lg transition-colors bg-red-600 text-white border-b-4 border-red-800 hover:bg-red-500"
+                                    >
+                                        Eliminar Todas las Evaluaciones
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
             case 'main':
             default:
                 return (
@@ -316,13 +441,14 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                         <AdminMenuCard title="Gestionar Materias" onClick={() => setAdminSection('subjects')} />
                         <AdminMenuCard title="Gestionar Preguntas" onClick={() => setAdminSection('questions')} />
                         <AdminMenuCard title="Asignaciones por Grado" onClick={() => setAdminSection('assignments')} />
+                        <AdminMenuCard title="Herramientas de Datos" onClick={() => setAdminSection('dataTools')} />
                     </div>
                 );
         }
     }
 
     return (
-        <div className="animate-fade flex flex-col gap-8">
+        <div className="animate-fade-in flex flex-col gap-8">
             <div className="flex items-center">
                  {adminSection !== 'main' ? (
                      <button onClick={() => setAdminSection('main')} className="flex items-center text-gray-400 font-bold text-2xl hover:text-gray-700 transition-colors mr-4">
@@ -343,8 +469,21 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                 <ConfirmationModal
                     onClose={() => setConfirmModalState({ isOpen: false, message: '', onConfirm: () => {} })}
                     onConfirm={confirmModalState.onConfirm}
-                    title="Confirmar Eliminación"
+                    title="Confirmar Acción"
                     message={confirmModalState.message}
+                />
+            )}
+            
+            {isAuthModalVisible && evaluationForAuth && (
+                <StatisticsAuthModal
+                    onClose={() => { setAuthModalVisible(false); setEvaluationForAuth(null); }}
+                    onSuccess={() => {
+                        onStartEditEvaluation(evaluationForAuth);
+                        setAuthModalVisible(false);
+                        setEvaluationForAuth(null);
+                    }}
+                    title="Acceso Restringido"
+                    message="Ingresa la contraseña para editar esta evaluación."
                 />
             )}
         </div>

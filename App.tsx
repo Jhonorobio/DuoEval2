@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const [currentAnswers, setCurrentAnswers] = useState<Answer[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showCompletionMessage, setShowCompletionMessage] = useState<boolean>(false);
+  const [evaluationToEdit, setEvaluationToEdit] = useState<Evaluation | null>(null);
   
   const [isGradeChangeAuthVisible, setGradeChangeAuthVisible] = useState<boolean>(false);
   const [isOptionsMenuVisible, setOptionsMenuVisible] = useState<boolean>(false);
@@ -88,44 +89,70 @@ const App: React.FC = () => {
           );
         }
       }
-
-      const evaluationData = {
-        student_name: studentName,
-        grade_id: currentEvaluationTarget.grade.id,
-        teacher_id: currentEvaluationTarget.teacher.id,
-        subject_id: currentEvaluationTarget.subject.id,
-        answers: finalAnswers,
-      };
-
-      const { data, error } = await supabase.from('evaluations').insert([evaluationData]).select();
-
-      if (error) {
-        console.error("Error saving evaluation:", error);
-        alert("Hubo un error al guardar tu evaluación. Por favor, intenta de nuevo.");
-        return;
-      }
       
-      const newEvaluation: Evaluation = {
-        id: data[0].id,
-        studentName: data[0].student_name,
-        gradeId: data[0].grade_id,
-        teacherId: data[0].teacher_id,
-        subjectId: data[0].subject_id,
-        answers: data[0].answers as Answer[],
-        timestamp: new Date(data[0].timestamp).getTime(),
-      };
-      
-      const newEvaluations = [...evaluations, newEvaluation];
-      setEvaluations(newEvaluations);
-      setCurrentEvaluationTarget(null);
+      if (evaluationToEdit) {
+        const { data, error } = await supabase
+          .from('evaluations')
+          .update({ answers: finalAnswers })
+          .eq('id', evaluationToEdit.id)
+          .select()
+          .single();
+        
+        if (error) {
+          console.error("Error updating evaluation:", error);
+          alert("Hubo un error al actualizar tu evaluación. Por favor, intenta de nuevo.");
+          return;
+        }
 
-      const assignmentsForGrade = grades.find(g => g.id === selectedGrade.id)?.assignments.length || 0;
-      const completedForGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id).length;
+        setEvaluations(prevEvals => prevEvals.map(ev => 
+          ev.id === evaluationToEdit.id ? { ...ev, answers: data.answers as Answer[] } : ev
+        ));
+        
+        alert("Evaluación actualizada con éxito.");
+        
+        setCurrentEvaluationTarget(null);
+        setEvaluationToEdit(null);
+        setView('admin');
 
-      if (completedForGrade >= assignmentsForGrade) {
-        setView('finalCompletion');
       } else {
-        setShowCompletionMessage(true);
+        const evaluationData = {
+          student_name: studentName,
+          grade_id: currentEvaluationTarget.grade.id,
+          teacher_id: currentEvaluationTarget.teacher.id,
+          subject_id: currentEvaluationTarget.subject.id,
+          answers: finalAnswers,
+        };
+
+        const { data, error } = await supabase.from('evaluations').insert([evaluationData]).select();
+
+        if (error) {
+          console.error("Error saving evaluation:", error);
+          alert("Hubo un error al guardar tu evaluación. Por favor, intenta de nuevo.");
+          return;
+        }
+        
+        const newEvaluation: Evaluation = {
+          id: data[0].id,
+          studentName: data[0].student_name,
+          gradeId: data[0].grade_id,
+          teacherId: data[0].teacher_id,
+          subjectId: data[0].subject_id,
+          answers: data[0].answers as Answer[],
+          timestamp: new Date(data[0].timestamp).getTime(),
+        };
+        
+        const newEvaluations = [...evaluations, newEvaluation];
+        setEvaluations(newEvaluations);
+        setCurrentEvaluationTarget(null);
+
+        const assignmentsForGrade = grades.find(g => g.id === selectedGrade.id)?.assignments.length || 0;
+        const completedForGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id).length;
+
+        if (completedForGrade >= assignmentsForGrade) {
+          setView('finalCompletion');
+        } else {
+          setShowCompletionMessage(true);
+        }
       }
     }
   };
@@ -152,7 +179,12 @@ const App: React.FC = () => {
   };
 
   const exitEvaluation = () => {
+    const wasEditing = !!evaluationToEdit;
     setCurrentEvaluationTarget(null);
+    setEvaluationToEdit(null);
+    if (wasEditing) {
+      setView('admin');
+    }
   };
 
   const handleGradeChangeRequest = () => {
@@ -190,6 +222,35 @@ const App: React.FC = () => {
         setEvaluations([]);
         alert("Todos los datos de las evaluaciones han sido borrados con éxito.");
     }
+  };
+  
+  const handleDeleteStudentEvaluations = async (studentNameToDelete: string) => {
+    const { error } = await supabase.from('evaluations').delete().eq('student_name', studentNameToDelete);
+    if (error) {
+      console.error("Error deleting student evaluations:", error);
+      alert(`Hubo un error al borrar las evaluaciones de ${studentNameToDelete}.`);
+      throw error;
+    }
+    setEvaluations(prev => prev.filter(e => e.studentName !== studentNameToDelete));
+    alert(`Todas las evaluaciones de ${studentNameToDelete} han sido borradas.`);
+  };
+
+  const handleStartEditEvaluation = (evaluation: Evaluation) => {
+    const grade = grades.find(g => g.id === evaluation.gradeId);
+    const teacher = teachers.find(t => t.id === evaluation.teacherId);
+    const subject = subjects.find(s => s.id === evaluation.subjectId);
+    if (!grade || !teacher || !subject) {
+        alert("Error: No se pudieron cargar los datos de la evaluación para editar.");
+        return;
+    }
+    setEvaluationToEdit(evaluation);
+    setStudentName(evaluation.studentName);
+    setSelectedGrade(grade);
+    setCurrentEvaluationTarget({ grade, teacher, subject });
+    setCurrentAnswers(evaluation.answers);
+    setCurrentQuestionIndex(0);
+    setShowCompletionMessage(false);
+    setView('dashboard');
   };
 
   const handleSaveTeacher = async (formData: { id: string | null; name: string; assignments: Record<string, number[]> }) => {
@@ -319,6 +380,8 @@ const App: React.FC = () => {
             setEvaluations={setEvaluations}
             onEditSubjectIcon={setEditingSubject}
             onEditTeacher={setTeacherToEdit}
+            onDeleteStudentEvaluations={handleDeleteStudentEvaluations}
+            onStartEditEvaluation={handleStartEditEvaluation}
         />;
       default:
         return <div>Error</div>;
