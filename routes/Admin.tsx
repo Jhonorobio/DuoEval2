@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import supabase from '../supabaseClient';
 import { Grade, Subject, Teacher, EvaluationLevel, Evaluation } from '../types';
@@ -101,16 +102,20 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                 e.studentName === studentName && e.gradeId === gradeId
             );
 
-            const isAssignmentCompleted = (assignment: { teacherId: string, subjectId: string }): boolean => {
-                return studentEvaluations.some(ev => 
-                    ev.subjectId === assignment.subjectId && ev.teacherId === assignment.teacherId
+            const completedUniqueAssignments = new Set<string>();
+            studentEvaluations.forEach(ev => {
+                const isForValidAssignment = validAssignments.some(a => 
+                    a.teacherId === ev.teacherId && a.subjectId === ev.subjectId
                 );
-            };
+                if (isForValidAssignment) {
+                    completedUniqueAssignments.add(`${ev.teacherId}-${ev.subjectId}`);
+                }
+            });
 
-            const completedCount = validAssignments.filter(isAssignmentCompleted).length;
+            const completedCount = completedUniqueAssignments.size;
 
             const pendingAssignments = validAssignments
-                .filter(a => !isAssignmentCompleted(a))
+                .filter(a => !completedUniqueAssignments.has(`${a.teacherId}-${a.subjectId}`))
                 .map(a => subjects.find(s => s.id === a.subjectId)?.name)
                 .filter((name): name is string => !!name);
 
