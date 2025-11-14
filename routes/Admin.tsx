@@ -9,6 +9,7 @@ import { EditableQuestionList } from '../components/admin/EditableQuestionList';
 import { ConfirmationModal } from '../components/modals/ConfirmationModal';
 import { AssignmentsManager } from '../components/admin/AssignmentsManager';
 import { StatisticsAuthModal } from '../components/modals/StatisticsAuthModal';
+import ProgressBar from '../components/ProgressBar';
 
 interface AdminViewProps {
     onBack: () => void;
@@ -39,7 +40,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         onDeleteStudentEvaluations, onStartEditEvaluation
     } = props;
     
-    const [adminSection, setAdminSection] = useState<'main' | 'teachers' | 'subjects' | 'questions' | 'assignments' | 'dataTools'>('main');
+    const [adminSection, setAdminSection] = useState<'main' | 'teachers' | 'subjects' | 'questions' | 'assignments' | 'dataTools' | 'studentProgress'>('main');
     const [newSubjectName, setNewSubjectName] = useState('');
     const [confirmModalState, setConfirmModalState] = useState<{
         isOpen: boolean;
@@ -51,6 +52,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
     const [selectedStudent, setSelectedStudent] = useState<string>('');
     const [evaluationForAuth, setEvaluationForAuth] = useState<Evaluation | null>(null);
     const [isAuthModalVisible, setAuthModalVisible] = useState(false);
+    const [selectedGradeForProgress, setSelectedGradeForProgress] = useState<string>('');
 
     const studentsInSelectedGrade = useMemo(() => {
         if (!selectedGradeForDataTools) return [];
@@ -74,6 +76,43 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
             })
             .filter(e => e.teacherName && e.subjectName && e.gradeName);
     }, [selectedStudent, selectedGradeForDataTools, evaluations, teachers, subjects, grades]);
+
+    const studentProgressData = useMemo(() => {
+        if (!selectedGradeForProgress) return [];
+        
+        const gradeId = parseInt(selectedGradeForProgress, 10);
+        const grade = grades.find(g => g.id === gradeId);
+        if (!grade) return [];
+
+        const totalAssignments = grade.assignments.length;
+        if (totalAssignments === 0) return [];
+
+        const studentsInGrade = [...new Set(evaluations
+            .filter(e => e.gradeId === gradeId)
+            .map(e => e.studentName)
+        )];
+
+        return studentsInGrade.map(studentName => {
+            const completedEvaluations = evaluations.filter(e => 
+                e.studentName === studentName && e.gradeId === gradeId
+            );
+            const completedCount = completedEvaluations.length;
+
+            const completedSubjectIds = new Set(completedEvaluations.map(e => e.subjectId));
+            const pendingAssignments = grade.assignments
+                .filter(a => !completedSubjectIds.has(a.subjectId))
+                .map(a => subjects.find(s => s.id === a.subjectId)?.name)
+                .filter(Boolean) as string[];
+
+            return {
+                name: studentName,
+                completedCount,
+                totalAssignments,
+                pendingAssignments,
+            };
+        // FIX: Explicitly convert student name to string for sorting to resolve type inference issue.
+        }).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }, [selectedGradeForProgress, evaluations, grades, subjects]);
 
     const handleDeleteStudentData = () => {
         if (!selectedStudent) return;
@@ -433,6 +472,58 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                         )}
                     </div>
                 );
+            case 'studentProgress':
+                return (
+                    <div className="max-w-4xl mx-auto flex flex-col gap-8">
+                        <h3 className="text-3xl font-bold text-gray-800">Progreso de Estudiantes por Grado</h3>
+                        <div className="bg-white p-6 rounded-lg border border-gray-200">
+                            <div className="mb-6">
+                                <label htmlFor="grade-select-progress" className="block text-xl font-bold text-gray-700 mb-2">Selecciona un Grado</label>
+                                <select 
+                                    id="grade-select-progress" 
+                                    value={selectedGradeForProgress} 
+                                    onChange={e => setSelectedGradeForProgress(e.target.value)}
+                                    className="w-full p-3 text-lg border-2 border-gray-200 rounded-lg"
+                                >
+                                    <option value="">-- Selecciona un Grado --</option>
+                                    {[...grades].sort((a, b) => a.id - b.id).map(grade => <option key={grade.id} value={grade.id}>{grade.name}</option>)}
+                                </select>
+                            </div>
+            
+                            {selectedGradeForProgress && (
+                                <div className="flex flex-col gap-4 animate-fade-in-fast">
+                                    {studentProgressData.length > 0 ? (
+                                        studentProgressData.map(student => (
+                                            <div key={student.name} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                                    <span className="font-bold text-xl text-gray-900 mb-2 sm:mb-0">{student.name}</span>
+                                                    <span className={`font-semibold text-lg ${student.completedCount === student.totalAssignments ? 'text-green-600' : 'text-gray-600'}`}>
+                                                        {student.completedCount} / {student.totalAssignments} completadas
+                                                    </span>
+                                                </div>
+                                                <div className="mt-2">
+                                                    <ProgressBar current={student.completedCount} total={student.totalAssignments} />
+                                                </div>
+                                                {student.pendingAssignments.length > 0 && (
+                                                    <details className="mt-3 text-sm">
+                                                        <summary className="cursor-pointer font-semibold text-sky-700 hover:underline">
+                                                            Mostrar {student.pendingAssignments.length} materia(s) pendiente(s)
+                                                        </summary>
+                                                        <ul className="list-disc pl-5 mt-2 text-gray-700 space-y-1">
+                                                            {student.pendingAssignments.map(subjectName => <li key={subjectName}>{subjectName}</li>)}
+                                                        </ul>
+                                                    </details>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-center text-gray-500 py-4">No hay datos de evaluaciones para este grado.</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
             case 'main':
             default:
                 return (
@@ -442,6 +533,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                         <AdminMenuCard title="Gestionar Preguntas" onClick={() => setAdminSection('questions')} />
                         <AdminMenuCard title="Asignaciones por Grado" onClick={() => setAdminSection('assignments')} />
                         <AdminMenuCard title="Herramientas de Datos" onClick={() => setAdminSection('dataTools')} />
+                        <AdminMenuCard title="Progreso de Estudiantes" onClick={() => setAdminSection('studentProgress')} />
                     </div>
                 );
         }
