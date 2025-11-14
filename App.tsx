@@ -145,17 +145,33 @@ const App: React.FC = () => {
         setEvaluations(newEvaluations);
         setCurrentEvaluationTarget(null);
 
-        const assignmentsForGrade = grades.find(g => g.id === selectedGrade.id)?.assignments || [];
-        const studentEvaluationsInGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id);
-        
-        const completedAssignmentsCount = assignmentsForGrade.filter(assignment => 
-            studentEvaluationsInGrade.some(ev => ev.subjectId === assignment.subjectId && ev.teacherId === assignment.teacherId)
-        ).length;
+        const gradeDef = grades.find(g => g.id === selectedGrade.id);
+        if (gradeDef) {
+            const validAssignmentsForGrade = gradeDef.assignments.filter(assignment =>
+                teachers.some(t => t.id === assignment.teacherId) &&
+                subjects.some(s => s.id === assignment.subjectId)
+            );
+            const totalValidAssignments = validAssignmentsForGrade.length;
 
-        if (assignmentsForGrade.length > 0 && completedAssignmentsCount >= assignmentsForGrade.length) {
-          setView('finalCompletion');
+            if (totalValidAssignments > 0) {
+                const studentEvaluationsInGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id);
+                
+                const completedCount = validAssignmentsForGrade.filter(assignment =>
+                    studentEvaluationsInGrade.some(ev =>
+                        ev.subjectId === assignment.subjectId && ev.teacherId === assignment.teacherId
+                    )
+                ).length;
+
+                if (completedCount >= totalValidAssignments) {
+                    setView('finalCompletion');
+                } else {
+                    setShowCompletionMessage(true);
+                }
+            } else {
+                setView('finalCompletion');
+            }
         } else {
-          setShowCompletionMessage(true);
+            setShowCompletionMessage(true);
         }
       }
     }
@@ -163,7 +179,7 @@ const App: React.FC = () => {
 
   const previousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
   };
 
