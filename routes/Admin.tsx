@@ -93,16 +93,22 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         )];
 
         return studentsInGrade.map(studentName => {
-            const completedEvaluations = evaluations.filter(e => 
+            const studentEvaluations = evaluations.filter(e => 
                 e.studentName === studentName && e.gradeId === gradeId
             );
-            const completedSubjectIds = new Set(completedEvaluations.map(e => e.subjectId));
-            const completedCount = completedSubjectIds.size;
+
+            const isAssignmentCompleted = (assignment: { teacherId: string, subjectId: string }): boolean => {
+                return studentEvaluations.some(ev => 
+                    ev.subjectId === assignment.subjectId && ev.teacherId === assignment.teacherId
+                );
+            };
+
+            const completedCount = grade.assignments.filter(isAssignmentCompleted).length;
 
             const pendingAssignments = grade.assignments
-                .filter(a => !completedSubjectIds.has(a.subjectId))
+                .filter(a => !isAssignmentCompleted(a))
                 .map(a => subjects.find(s => s.id === a.subjectId)?.name)
-                .filter(Boolean) as string[];
+                .filter((name): name is string => !!name);
 
             return {
                 name: studentName,
@@ -110,7 +116,6 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                 totalAssignments,
                 pendingAssignments,
             };
-        // FIX: Explicitly convert student name to string for sorting to resolve type inference issue.
         }).sort((a, b) => String(a.name).localeCompare(String(b.name)));
     }, [selectedGradeForProgress, evaluations, grades, subjects]);
 

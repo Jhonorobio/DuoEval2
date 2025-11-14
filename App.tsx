@@ -145,11 +145,14 @@ const App: React.FC = () => {
         setEvaluations(newEvaluations);
         setCurrentEvaluationTarget(null);
 
-        const assignmentsForGrade = grades.find(g => g.id === selectedGrade.id)?.assignments.length || 0;
+        const assignmentsForGrade = grades.find(g => g.id === selectedGrade.id)?.assignments || [];
         const studentEvaluationsInGrade = newEvaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id);
-        const completedCount = new Set(studentEvaluationsInGrade.map(e => e.subjectId)).size;
+        
+        const completedAssignmentsCount = assignmentsForGrade.filter(assignment => 
+            studentEvaluationsInGrade.some(ev => ev.subjectId === assignment.subjectId && ev.teacherId === assignment.teacherId)
+        ).length;
 
-        if (completedCount >= assignmentsForGrade) {
+        if (assignmentsForGrade.length > 0 && completedAssignmentsCount >= assignmentsForGrade.length) {
           setView('finalCompletion');
         } else {
           setShowCompletionMessage(true);
