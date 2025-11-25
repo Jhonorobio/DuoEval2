@@ -85,31 +85,34 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   
   const { primaryGeneralData, highSchoolGeneralData } = useMemo(() => {
     const teacherStats: Record<string, {
-        totalScore: number;
-        totalAnswers: number;
-        surveyCount: number;
-        levels: Set<EvaluationLevel>;
         name: string;
+        [EvaluationLevel.Primary]?: { totalScore: number; totalAnswers: number; surveyCount: number; };
+        [EvaluationLevel.HighSchool]?: { totalScore: number; totalAnswers: number; surveyCount: number; };
     }> = {};
 
     teachers.forEach(t => {
-        teacherStats[t.id] = { totalScore: 0, totalAnswers: 0, surveyCount: 0, levels: new Set(), name: t.name };
+        teacherStats[t.id] = { name: t.name };
     });
 
     evaluations.forEach(evaluation => {
         const grade = grades.find(g => g.id === evaluation.gradeId);
         if (!grade || !teacherStats[evaluation.teacherId]) return;
 
-        const isPrimary = grade.level === EvaluationLevel.Primary;
-        const stats = teacherStats[evaluation.teacherId];
-        stats.levels.add(grade.level);
-        stats.surveyCount++;
+        const level = grade.level as EvaluationLevel;
+        const isPrimary = level === EvaluationLevel.Primary;
+        
+        if (!teacherStats[evaluation.teacherId][level]) {
+            teacherStats[evaluation.teacherId][level] = { totalScore: 0, totalAnswers: 0, surveyCount: 0 };
+        }
+        
+        const statsForLevel = teacherStats[evaluation.teacherId][level]!;
+        statsForLevel.surveyCount++;
 
         evaluation.answers.forEach(answer => {
             const score = getScore(answer, isPrimary);
             if (score > 0) {
-                stats.totalScore += score;
-                stats.totalAnswers++;
+                statsForLevel.totalScore += score;
+                statsForLevel.totalAnswers++;
             }
         });
     });
@@ -117,24 +120,32 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     const primaryData: any[] = [];
     const highSchoolData: any[] = [];
 
-    Object.values(teacherStats).forEach(stats => {
-        if (stats.surveyCount > 0) {
-            const avgScore = stats.totalAnswers > 0 ? parseFloat((stats.totalScore / stats.totalAnswers).toFixed(2)) : 0;
-            const chartEntry = {
-                name: stats.name,
+    Object.values(teacherStats).forEach(teacherData => {
+        const primaryStats = teacherData[EvaluationLevel.Primary];
+        const highSchoolStats = teacherData[EvaluationLevel.HighSchool];
+
+        const teachesInBoth = primaryStats && primaryStats.surveyCount > 0 && highSchoolStats && highSchoolStats.surveyCount > 0;
+
+        if (primaryStats && primaryStats.surveyCount > 0) {
+            const avgScore = primaryStats.totalAnswers > 0 ? parseFloat((primaryStats.totalScore / primaryStats.totalAnswers).toFixed(2)) : 0;
+            primaryData.push({
+                name: teachesInBoth ? `${teacherData.name} (Primaria)` : teacherData.name,
                 'Calificación Promedio': avgScore,
-                'Total de Encuestas': stats.surveyCount,
-            };
-            if (stats.levels.has(EvaluationLevel.Primary)) {
-                primaryData.push(chartEntry);
-            }
-            if (stats.levels.has(EvaluationLevel.HighSchool)) {
-                highSchoolData.push(chartEntry);
-            }
+                'Total de Encuestas': primaryStats.surveyCount,
+            });
+        }
+        
+        if (highSchoolStats && highSchoolStats.surveyCount > 0) {
+            const avgScore = highSchoolStats.totalAnswers > 0 ? parseFloat((highSchoolStats.totalScore / highSchoolStats.totalAnswers).toFixed(2)) : 0;
+            highSchoolData.push({
+                name: teachesInBoth ? `${teacherData.name} (Bachillerato)` : teacherData.name,
+                'Calificación Promedio': avgScore,
+                'Total de Encuestas': highSchoolStats.surveyCount,
+            });
         }
     });
 
-    return { primaryGeneralData: primaryData, highSchoolGeneralData: highSchoolData };
+    return { primaryGeneralData, highSchoolGeneralData };
   }, [evaluations, teachers, grades]);
 
   const teacherLevels = useMemo(() => {

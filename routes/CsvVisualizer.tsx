@@ -238,25 +238,32 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         if (dataType !== 'comprehensive' || !parsedData) return null;
     
         const teacherStats: Record<string, {
-            totalScore: number;
-            answerCount: number;
-            evaluations: Set<string>;
-            levels: Set<string>;
+            [level: string]: {
+                totalScore: number;
+                answerCount: number;
+                evaluations: Set<string>;
+            }
         }> = {};
     
         parsedData.forEach(row => {
             const teacherName = row['Profesor'];
-            if (!teacherName) return;
+            const level = row['Nivel'];
+            if (!teacherName || (level !== 'PRIMARY' && level !== 'HIGH_SCHOOL')) return;
+    
             if (!teacherStats[teacherName]) {
-                teacherStats[teacherName] = { totalScore: 0, answerCount: 0, evaluations: new Set(), levels: new Set() };
+                teacherStats[teacherName] = {};
             }
+            if (!teacherStats[teacherName][level]) {
+                teacherStats[teacherName][level] = { totalScore: 0, answerCount: 0, evaluations: new Set() };
+            }
+            
+            const stats = teacherStats[teacherName][level];
             const score = parseFloat(row['Puntaje']);
             if (!isNaN(score)) {
-                teacherStats[teacherName].totalScore += score;
-                teacherStats[teacherName].answerCount++;
+                stats.totalScore += score;
+                stats.answerCount++;
             }
-            teacherStats[teacherName].evaluations.add(row['ID Evaluación']);
-            teacherStats[teacherName].levels.add(row['Nivel']);
+            stats.evaluations.add(row['ID Evaluación']);
         });
     
         const primaryData: any[] = [];
@@ -264,15 +271,27 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
         const allTeachersInCsv = Object.keys(teacherStats).sort();
     
         allTeachersInCsv.forEach(teacherName => {
-            const stats = teacherStats[teacherName];
-            const avgScore = stats.answerCount > 0 ? parseFloat((stats.totalScore / stats.answerCount).toFixed(2)) : 0;
-            const chartEntry = {
-                name: teacherName,
-                'Calificación Promedio': avgScore,
-                'Total de Encuestas': stats.evaluations.size,
-            };
-            if (stats.levels.has('PRIMARY')) primaryData.push(chartEntry);
-            if (stats.levels.has('HIGH_SCHOOL')) highSchoolData.push(chartEntry);
+            const primaryStats = teacherStats[teacherName]['PRIMARY'];
+            const highSchoolStats = teacherStats[teacherName]['HIGH_SCHOOL'];
+
+            const teachesInBoth = primaryStats && highSchoolStats;
+
+            if (primaryStats) {
+                const avgScore = primaryStats.answerCount > 0 ? parseFloat((primaryStats.totalScore / primaryStats.answerCount).toFixed(2)) : 0;
+                primaryData.push({
+                    name: teachesInBoth ? `${teacherName} (Primaria)` : teacherName,
+                    'Calificación Promedio': avgScore,
+                    'Total de Encuestas': primaryStats.evaluations.size,
+                });
+            }
+            if (highSchoolStats) {
+                const avgScore = highSchoolStats.answerCount > 0 ? parseFloat((highSchoolStats.totalScore / highSchoolStats.answerCount).toFixed(2)) : 0;
+                highSchoolData.push({
+                    name: teachesInBoth ? `${teacherName} (Bachillerato)` : teacherName,
+                    'Calificación Promedio': avgScore,
+                    'Total de Encuestas': highSchoolStats.evaluations.size,
+                });
+            }
         });
         
         let teacherSpecificChartData = null;
@@ -797,7 +816,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                 <BarChart data={primaryData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                                    <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                                    <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" domain={[0, 3]} ticks={[0,1,2,3]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
                                     <YAxis yAxisId="right" orientation="right" stroke="#10b981" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
                                     <Tooltip />
                                     <Legend />
@@ -812,7 +831,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                 <BarChart data={highSchoolData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} />
-                                    <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 5]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
+                                    <YAxis yAxisId="left" orientation="left" stroke="#8b5cf6" domain={[0, 4]} ticks={[0,1,2,3,4]} label={{ value: 'Promedio', angle: -90, position: 'insideLeft' }}/>
                                     <YAxis yAxisId="right" orientation="right" stroke="#ec4899" dataKey="Total de Encuestas" allowDecimals={false} label={{ value: 'Encuestas', angle: 90, position: 'insideRight' }}/>
                                     <Tooltip />
                                     <Legend />
