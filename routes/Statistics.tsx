@@ -84,68 +84,72 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   }
   
   const { primaryGeneralData, highSchoolGeneralData } = useMemo(() => {
-    const teacherStats: Record<string, {
-        name: string;
-        [EvaluationLevel.Primary]?: { totalScore: number; totalAnswers: number; surveyCount: number; };
-        [EvaluationLevel.HighSchool]?: { totalScore: number; totalAnswers: number; surveyCount: number; };
-    }> = {};
-
-    teachers.forEach(t => {
-        teacherStats[t.id] = { name: t.name };
-    });
-
-    evaluations.forEach(evaluation => {
+    const statsByTeacherAndLevel = evaluations.reduce((acc, evaluation) => {
         const grade = grades.find(g => g.id === evaluation.gradeId);
-        if (!grade || !teacherStats[evaluation.teacherId]) return;
+        if (!grade || !evaluation.teacherId) return acc;
 
+        const teacher = teachers.find(t => t.id === evaluation.teacherId);
+        if (!teacher) return acc;
+        
         const level = grade.level as EvaluationLevel;
         const isPrimary = level === EvaluationLevel.Primary;
-        
-        if (!teacherStats[evaluation.teacherId][level]) {
-            teacherStats[evaluation.teacherId][level] = { totalScore: 0, totalAnswers: 0, surveyCount: 0 };
-        }
-        
-        const statsForLevel = teacherStats[evaluation.teacherId][level]!;
-        statsForLevel.surveyCount++;
 
+        const key = `${evaluation.teacherId}#${level}`;
+
+        if (!acc[key]) {
+            acc[key] = {
+                teacherId: evaluation.teacherId,
+                teacherName: teacher.name,
+                level: level,
+                totalScore: 0,
+                totalAnswers: 0,
+                surveyCount: 0
+            };
+        }
+
+        acc[key].surveyCount++;
         evaluation.answers.forEach(answer => {
             const score = getScore(answer, isPrimary);
             if (score > 0) {
-                statsForLevel.totalScore += score;
-                statsForLevel.totalAnswers++;
+                acc[key].totalScore += score;
+                acc[key].totalAnswers++;
             }
         });
-    });
+
+        return acc;
+// Fix: Provide an explicit type for the accumulator to prevent TypeScript from inferring it as `unknown`.
+// This resolves multiple 'Property does not exist on type 'unknown'' errors throughout this `useMemo` block.
+    }, {} as Record<string, { teacherId: string, teacherName: string, level: EvaluationLevel, totalScore: number, totalAnswers: number, surveyCount: number }>);
+
+    const allTeacherIds = [...new Set(Object.values(statsByTeacherAndLevel).map(s => s.teacherId))];
+    const teachersWithBothLevels = new Set(
+        allTeacherIds.filter(id => 
+            statsByTeacherAndLevel[`${id}#${EvaluationLevel.Primary}`] &&
+            statsByTeacherAndLevel[`${id}#${EvaluationLevel.HighSchool}`]
+        )
+    );
 
     const primaryData: any[] = [];
     const highSchoolData: any[] = [];
 
-    Object.values(teacherStats).forEach(teacherData => {
-        const primaryStats = teacherData[EvaluationLevel.Primary];
-        const highSchoolStats = teacherData[EvaluationLevel.HighSchool];
+    Object.values(statsByTeacherAndLevel).forEach(stats => {
+        const avgScore = stats.totalAnswers > 0 ? parseFloat((stats.totalScore / stats.totalAnswers).toFixed(2)) : 0;
+        const hasBoth = teachersWithBothLevels.has(stats.teacherId);
 
-        const teachesInBoth = primaryStats && primaryStats.surveyCount > 0 && highSchoolStats && highSchoolStats.surveyCount > 0;
-
-        if (primaryStats && primaryStats.surveyCount > 0) {
-            const avgScore = primaryStats.totalAnswers > 0 ? parseFloat((primaryStats.totalScore / primaryStats.totalAnswers).toFixed(2)) : 0;
-            primaryData.push({
-                name: teachesInBoth ? `${teacherData.name} (Primaria)` : teacherData.name,
-                'Calificación Promedio': avgScore,
-                'Total de Encuestas': primaryStats.surveyCount,
-            });
-        }
+        const dataPoint = {
+            name: hasBoth ? `${stats.teacherName} (${stats.level === EvaluationLevel.Primary ? 'Primaria' : 'Bachillerato'})` : stats.teacherName,
+            'Calificación Promedio': avgScore,
+            'Total de Encuestas': stats.surveyCount,
+        };
         
-        if (highSchoolStats && highSchoolStats.surveyCount > 0) {
-            const avgScore = highSchoolStats.totalAnswers > 0 ? parseFloat((highSchoolStats.totalScore / highSchoolStats.totalAnswers).toFixed(2)) : 0;
-            highSchoolData.push({
-                name: teachesInBoth ? `${teacherData.name} (Bachillerato)` : teacherData.name,
-                'Calificación Promedio': avgScore,
-                'Total de Encuestas': highSchoolStats.surveyCount,
-            });
+        if (stats.level === EvaluationLevel.Primary) {
+            primaryData.push(dataPoint);
+        } else {
+            highSchoolData.push(dataPoint);
         }
     });
 
-    return { primaryGeneralData, highSchoolGeneralData };
+    return { primaryGeneralData: primaryData, highSchoolGeneralData: highSchoolData };
   }, [evaluations, teachers, grades]);
 
   const teacherLevels = useMemo(() => {
@@ -233,12 +237,12 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
       Resultados (Pregunta: Puntaje Promedio):
       ${dataForPrompt}
 
-      Por favor, genera un análisis detallado y constructivo en español. El análisis debe estar en formato Markdown e incluir las siguientes secciones:
+      Por favor, genera un análisis detallado y constructivo en español. El análisis debe ser en texto plano, sin ningún tipo de formato Markdown (sin asteriscos para negritas, ni numerales para títulos). El texto debe estar listo para ser copiado y pegado directamente en un documento de texto. El análisis debe incluir las siguientes secciones claramente separadas:
 
-      1.  **Resumen General**: Una breve descripción del desempeño general del profesor.
-      2.  **Fortalezas Clave**: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas. Explica qué indican estos buenos resultados en términos de prácticas pedagógicas.
-      3.  **Áreas de Oportunidad**: Identifica 2-3 áreas con las calificaciones más bajas. Preséntalas de manera constructiva, no como "debilidades", sino como "oportunidades de mejora".
-      4.  **Sugerencias Accionables**: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas que el profesor pueda implementar para mejorar. Las sugerencias deben ser realistas y orientadas a la acción.
+      1. Resumen General: Una breve descripción del desempeño general del profesor.
+      2. Fortalezas Clave: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas. Explica qué indican estos buenos resultados en términos de prácticas pedagógicas.
+      3. Áreas de Oportunidad: Identifica 2-3 áreas con las calificaciones más bajas. Preséntalas de manera constructiva, no como "debilidades", sino como "oportunidades de mejora".
+      4. Sugerencias Accionables: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas que el profesor pueda implementar para mejorar. Las sugerencias deben ser realistas y orientadas a la acción.
 
       El tono debe ser profesional, alentador y enfocado en el desarrollo profesional.
     `;
@@ -287,11 +291,11 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
             Resultados de Bachillerato:
             ${highSchoolPromptData}
 
-            Por favor, genera un análisis de alto nivel en español y formato Markdown que incluya:
-            1.  **Comparativa General**: Compara brevemente el desempeño general entre Primaria y Bachillerato. ¿Hay alguna tendencia notable?
-            2.  **Profesores Destacados**: Identifica 1 o 2 profesores con los resultados más altos en cada nivel (si aplica).
-            3.  **Áreas de Enfoque**: Identifica 1 o 2 profesores con los resultados más bajos que podrían necesitar más apoyo.
-            4.  **Recomendación Estratégica**: Basado en los datos, ¿qué recomendación general darías a la coordinación académica?
+            Por favor, genera un análisis de alto nivel en español, en texto plano y sin formato Markdown (sin asteriscos, numerales, etc.). El texto debe estar listo para ser copiado y pegado en un documento. El análisis debe incluir:
+            1.  Comparativa General: Compara brevemente el desempeño general entre Primaria y Bachillerato. ¿Hay alguna tendencia notable?
+            2.  Profesores Destacados: Identifica 1 o 2 profesores con los resultados más altos en cada nivel (si aplica).
+            3.  Áreas de Enfoque: Identifica 1 o 2 profesores con los resultados más bajos que podrían necesitar más apoyo.
+            4.  Recomendación Estratégica: Basado en los datos, ¿qué recomendación general darías a la coordinación académica?
 
             El tono debe ser profesional, objetivo y orientado a la toma de decisiones.
         `;

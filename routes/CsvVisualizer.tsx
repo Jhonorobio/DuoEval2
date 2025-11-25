@@ -359,11 +359,11 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
             Resultados de Bachillerato:
             ${highSchoolPromptData}
 
-            Por favor, genera un análisis de alto nivel en español y formato Markdown que incluya:
-            1.  **Comparativa General**: Compara brevemente el desempeño general entre Primaria y Bachillerato. ¿Hay alguna tendencia notable?
-            2.  **Profesores Destacados**: Identifica 1 o 2 profesores con los resultados más altos en cada nivel (si aplica).
-            3.  **Áreas de Enfoque**: Identifica 1 o 2 profesores con los resultados más bajos que podrían necesitar más apoyo.
-            4.  **Recomendación Estratégica**: Basado en los datos, ¿qué recomendación general darías a la coordinación académica?
+            Por favor, genera un análisis de alto nivel en español, en texto plano y sin formato Markdown (sin asteriscos, numerales, etc.). El texto debe estar listo para ser copiado y pegado en un documento. El análisis debe incluir:
+            1.  Comparativa General: Compara brevemente el desempeño general entre Primaria y Bachillerato. ¿Hay alguna tendencia notable?
+            2.  Profesores Destacados: Identifica 1 o 2 profesores con los resultados más altos en cada nivel (si aplica).
+            3.  Áreas de Enfoque: Identifica 1 o 2 profesores con los resultados más bajos que podrían necesitar más apoyo.
+            4.  Recomendación Estratégica: Basado en los datos, ¿qué recomendación general darías a la coordinación académica?
 
             El tono debe ser profesional, objetivo y orientado a la toma de decisiones.
         `;
@@ -409,11 +409,12 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
             Resultados (Pregunta: Puntaje Promedio):
             ${dataForPrompt}
 
-            Por favor, genera un análisis detallado y constructivo en español y formato Markdown que incluya:
-            1.  **Resumen General**: Una breve descripción del desempeño general del profesor según estos datos.
-            2.  **Fortalezas Clave**: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas.
-            3.  **Áreas de Oportunidad**: Identifica 2-3 áreas con las calificaciones más bajas como oportunidades de mejora.
-            4.  **Sugerencias Accionables**: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas.
+            Por favor, genera un análisis detallado y constructivo en español. El análisis debe ser en texto plano, sin ningún tipo de formato Markdown (sin asteriscos para negritas, ni numerales para títulos). El texto debe estar listo para ser copiado y pegado directamente en un documento de texto. El análisis debe incluir las siguientes secciones claramente separadas:
+
+            1.  Resumen General: Una breve descripción del desempeño general del profesor según estos datos.
+            2.  Fortalezas Clave: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas.
+            3.  Áreas de Oportunidad: Identifica 2-3 áreas con las calificaciones más bajas como oportunidades de mejora.
+            4.  Sugerencias Accionables: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas.
 
             El tono debe ser profesional, alentador y enfocado en el desarrollo profesional.
         `;
@@ -476,11 +477,12 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
             Resultados (Pregunta: Puntaje Promedio):
             ${dataForPrompt}
 
-            Por favor, genera un análisis detallado y constructivo en español y formato Markdown que incluya:
-            1.  **Resumen General**: Una breve descripción del desempeño general del profesor según estos datos.
-            2.  **Fortalezas Clave**: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas.
-            3.  **Áreas de Oportunidad**: Identifica 2-3 áreas con las calificaciones más bajas como oportunidades de mejora.
-            4.  **Sugerencias Accionables**: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas.
+            Por favor, genera un análisis detallado y constructivo en español. El análisis debe ser en texto plano, sin ningún tipo de formato Markdown (sin asteriscos para negritas, ni numerales para títulos). El texto debe estar listo para ser copiado y pegado directamente en un documento de texto. El análisis debe incluir las siguientes secciones claramente separadas:
+
+            1.  Resumen General: Una breve descripción del desempeño general del profesor según estos datos.
+            2.  Fortalezas Clave: Identifica 2-3 áreas donde el profesor obtuvo las calificaciones más altas.
+            3.  Áreas de Oportunidad: Identifica 2-3 áreas con las calificaciones más bajas como oportunidades de mejora.
+            4.  Sugerencias Accionables: Para cada área de oportunidad, proporciona 1-2 sugerencias concretas y prácticas.
 
             El tono debe ser profesional, alentador y enfocado en el desarrollo profesional.
         `;
