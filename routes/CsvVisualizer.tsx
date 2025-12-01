@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LabelList } from 'recharts';
 import { ArrowLeftIcon, UploadCloudIcon } from '../components/Icons';
 import { Section } from '../components/ui/Section';
 import { ChartTooltipWithFullQuestion } from '../components/ui/ChartTooltip';
@@ -315,7 +315,7 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
     
                 teacherSpecificChartData = Object.entries(questionScores)
                     .sort(([, a], [, b]) => a.order - b.order)
-                    .map(([questionText, data], index) => {
+                    .map(([questionText, data]) => {
                         const averageScore = data.scores.length > 0 ? data.scores.reduce((a, b) => a + b, 0) / data.scores.length : 0;
                         return {
                             question: `Q${data.order}`,
@@ -653,11 +653,14 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                 const filteredTeacherData = parsedData.filter(d => 
                     teacherViewAvailableLevels.size === 0 || d['Nivel'] === teacherViewLevel
                 );
-                const teacherChartData = filteredTeacherData.map((d, i) => ({
-                    question: `Q${i + 1}`,
-                    fullQuestion: d['Pregunta'],
-                    score: parseFloat(d['Puntaje Promedio']),
-                }));
+                const teacherChartData = filteredTeacherData.map((d, i) => {
+                    const fullQuestion = d['Pregunta'];
+                    return {
+                        question: `Q${i + 1}`,
+                        fullQuestion: fullQuestion,
+                        score: parseFloat(d['Puntaje Promedio']),
+                    };
+                });
                 const maxScore = teacherChartData.some(d => d.score > 3) ? 4 : 3;
                 const isPrimaryTeacherView = teacherViewLevel === 'Primaria';
 
@@ -706,20 +709,22 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                         </div>
                         {chartType === 'bar' ? (
                             <ResponsiveContainer width="100%" height={400}>
-                                <BarChart data={teacherChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                <BarChart data={teacherChartData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" />
                                     <XAxis dataKey="question" />
                                     <YAxis domain={[0, maxScore]} />
                                     <Tooltip content={<ChartTooltipWithFullQuestion />} />
                                     <Legend />
-                                    <Bar dataKey="score" fill={isPrimaryTeacherView ? "#82ca9d" : "#8884d8"} name={`Puntaje Promedio`} />
+                                    <Bar dataKey="score" fill={isPrimaryTeacherView ? "#82ca9d" : "#8884d8"} name={`Puntaje Promedio`}>
+                                        <LabelList dataKey="score" position="top" style={{ fill: '#4A5568', fontSize: '12px' }} />
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : (
                             <ResponsiveContainer width="100%" height={400}>
                                 <RadarChart cx="50%" cy="50%" outerRadius="80%" data={teacherChartData}>
                                     <PolarGrid />
-                                    <PolarAngleAxis dataKey="question" />
+                                    <PolarAngleAxis dataKey="question" style={{ fontSize: '0.8rem' }} />
                                     <PolarRadiusAxis angle={30} domain={[0, maxScore]}/>
                                     <Radar name="Puntaje Promedio" dataKey="score" stroke={isPrimaryTeacherView ? "#34d399" : "#a78bfa"} fill={isPrimaryTeacherView ? "#a7f3d0" : "#d8b4fe"} fillOpacity={0.6} />
                                     <Tooltip content={<ChartTooltipWithFullQuestion />} />
@@ -894,20 +899,22 @@ export const CsvVisualizerView: React.FC<{ onBack: () => void; }> = ({ onBack })
                                     <h3 className="text-2xl font-semibold mb-2 text-gray-800">Calificación por Pregunta para {comprehensiveTeacher}</h3>
                                     {comprehensiveChartType === 'bar' ? (
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={teacherSpecificChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                                            <BarChart data={teacherSpecificChartData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
                                                 <CartesianGrid strokeDasharray="3 3" />
                                                 <XAxis dataKey="question" />
                                                 <YAxis domain={[0, maxComprehensiveScore]} />
                                                 <Tooltip content={<ChartTooltipWithFullQuestion />} />
                                                 <Legend />
-                                                <Bar dataKey="score" fill={teacherLevel === 'PRIMARY' ? "#82ca9d" : "#8884d8"} name={`Puntaje Promedio`} />
+                                                <Bar dataKey="score" fill={teacherLevel === 'PRIMARY' ? "#82ca9d" : "#8884d8"} name={`Puntaje Promedio`}>
+                                                    <LabelList dataKey="score" position="top" style={{ fill: '#4A5568', fontSize: '12px' }} />
+                                                </Bar>
                                             </BarChart>
                                         </ResponsiveContainer>
                                     ) : (
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={teacherSpecificChartData}>
                                                 <PolarGrid />
-                                                <PolarAngleAxis dataKey="question" />
+                                                <PolarAngleAxis dataKey="question" style={{ fontSize: '0.8rem' }} />
                                                 <PolarRadiusAxis angle={30} domain={[0, maxComprehensiveScore]} />
                                                 <Radar name="Puntaje Promedio" dataKey="score" stroke={teacherLevel === 'PRIMARY' ? "#34d399" : "#a78bfa"} fill={teacherLevel === 'PRIMARY' ? "#a7f3d0" : "#d8b4fe"} fillOpacity={0.6} />
                                                 <Tooltip content={<ChartTooltipWithFullQuestion />} />

@@ -15,6 +15,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar,
+  LabelList,
 } from 'recharts';
 import { Evaluation, Grade, Teacher, Subject, Answer, EvaluationLevel, PrimaryRating } from '../types';
 import { PRIMARY_RATING_OPTIONS } from '../constants';
@@ -117,8 +118,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         });
 
         return acc;
-// Fix: Provide an explicit type for the accumulator to prevent TypeScript from inferring it as `unknown`.
-// This resolves multiple 'Property does not exist on type 'unknown'' errors throughout this `useMemo` block.
+    // FIX: Provide an explicit type for the accumulator to prevent TypeScript from inferring it as `unknown`.
+    // This resolves multiple 'Property does not exist on type 'unknown'' errors throughout this `useMemo` block.
     }, {} as Record<string, { teacherId: string, teacherName: string, level: EvaluationLevel, totalScore: number, totalAnswers: number, surveyCount: number }>);
 
     const allTeacherIds = [...new Set(Object.values(statsByTeacherAndLevel).map(s => s.teacherId))];
@@ -466,13 +467,15 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
             {teacherChartType === 'bar' ? (
                 <div className="w-full h-96">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={teacherAnalysisData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                        <BarChart data={teacherAnalysisData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="question" />
                             <YAxis domain={[0, maxScore]} />
                             <Tooltip content={<ChartTooltipWithFullQuestion />} />
                             <Legend />
-                            <Bar dataKey="score" fill={barColor} name={`Puntaje Promedio`} />
+                            <Bar dataKey="score" fill={barColor} name={`Puntaje Promedio`}>
+                                <LabelList dataKey="score" position="top" style={{ fill: '#4A5568', fontSize: '12px' }} />
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -481,7 +484,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
                     <ResponsiveContainer width="100%" height="100%">
                         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={teacherAnalysisData}>
                             <PolarGrid />
-                            <PolarAngleAxis dataKey="question" />
+                            <PolarAngleAxis dataKey="question" style={{ fontSize: '0.8rem' }}/>
                             <PolarRadiusAxis angle={30} domain={[0, maxScore]} />
                             <Radar name="Puntaje Promedio" dataKey="score" stroke={radarStroke} fill={radarFill} fillOpacity={0.6} />
                             <Tooltip content={<ChartTooltipWithFullQuestion />} />
@@ -558,7 +561,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
               >
                   {isGeneratingGeneralSummary ? (
                       <>
-                          <svg className="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin -ml-1 mr-1 h-5 w-5 text-white" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
