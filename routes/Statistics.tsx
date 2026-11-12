@@ -17,7 +17,7 @@ import {
   Radar,
   LabelList,
 } from 'recharts';
-import { Evaluation, Grade, Teacher, Subject, Answer, EvaluationLevel, PrimaryRating } from '../types';
+import { Evaluation, Grade, Teacher, Subject, Answer, EvaluationLevel, PrimaryRating, EvaluacionRol, RolEvaluacion, RolPregunta } from '../types';
 import { PRIMARY_RATING_OPTIONS } from '../constants';
 import { downloadCSV } from '../utils/csv';
 import { ArrowLeftIcon, XCircleIcon, DownloadIcon, UploadCloudIcon } from '../components/Icons';
@@ -27,12 +27,14 @@ import { StatisticsAuthModal } from '../components/modals/StatisticsAuthModal';
 
 interface StatisticsViewProps { 
     evaluations: Evaluation[]; 
+    evaluacionesRol: EvaluacionRol[];
     onBack: () => void;
     grades: Grade[];
     teachers: Teacher[];
     subjects: Subject[];
     primaryQuestions: string[];
     highSchoolQuestions: string[];
+    roleQuestions: RolPregunta[];
     onDeleteAll: () => Promise<void>;
     onNavigateToVisualizer: () => void;
 }
@@ -45,6 +47,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
   const [teacherChartType, setTeacherChartType] = useState<'bar' | 'radar'>('bar');
   const [isDeleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [teacherAnalysisTab, setTeacherAnalysisTab] = useState<'primary' | 'highSchool'>('primary');
+  const [selectedRoleForStats, setSelectedRoleForStats] = useState<RolEvaluacion>('COORDINADORA');
   
   // State for per-teacher AI summary
   const [teacherAiSummary, setTeacherAiSummary] = useState<string | null>(null);
@@ -209,6 +212,37 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
         e.teacherId === selectedTeacherForStudent
     );
   }, [evaluations, selectedGradeForStudent, selectedTeacherForStudent]);
+
+  const roleStatsData = useMemo(() => {
+    if (!selectedRoleForStats || evaluacionesRol.length === 0) return [];
+    
+    const filtered = evaluacionesRol.filter(e => e.role === selectedRoleForStats && e.studentName);
+    if (filtered.length === 0) return [];
+    
+    const questionsForRole = roleQuestions
+      .filter(q => q.role === selectedRoleForStats)
+      .sort((a, b) => a.order - b.order);
+    
+    if (questionsForRole.length === 0) return [];
+    
+    return questionsForRole.map((q, index) => {
+      const scores = filtered.map(e => {
+        const ans = e.answers[index];
+        if (ans === PrimaryRating.Never) return 1;
+        if (ans === PrimaryRating.Sometimes) return 2;
+        if (ans === PrimaryRating.Always) return 3;
+        return 0;
+      }).filter(s => s > 0);
+      
+      const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      
+      return {
+        question: `Q${index + 1}`,
+        score: parseFloat(avg.toFixed(2)),
+        fullQuestion: q.text,
+      };
+    });
+  }, [evaluacionesRol, selectedRoleForStats, roleQuestions]);
   
   const handleGenerateTeacherSummary = async () => {
     if (!selectedTeacherForAnalysis || teacherAnalysisData.length === 0) return;
@@ -801,6 +835,168 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
             </p>
           )}
       </Section>
+
+      <Section title="Análisis por Rol de Personal">
+        <div className="flex flex-col gap-4">
+          <select
+            value={selectedRoleForStats}
+            onChange={e => setSelectedRoleForStats(e.target.value as RolEvaluacion)}
+            className="w-full max-w-md p-3 text-lg border-2 border-gray-200 rounded-lg"
+          >
+            <option value="COORDINADORA">Coordinadora</option>
+            <option value="RECTORA">Rectora</option>
+            <option value="ASEO">Personal de Aseo</option>
+            <option value="VIGILANTE">Vigilante</option>
+          </select>
+
+          {roleStatsData.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg self-start">
+                <button
+                  onClick={() => setTeacherChartType('bar')}
+                  className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${teacherChartType === 'bar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}
+                >
+                  Barras
+                </button>
+                <button
+                  onClick={() => setTeacherChartType('radar')}
+                  className={`py-1 px-3 rounded-md text-sm font-semibold transition-all ${teacherChartType === 'radar' ? 'bg-white text-blue-600 shadow-sm' : 'bg-transparent text-gray-600'}`}
+                >
+                  Radial
+                </button>
+              </div>
+
+              <div className="mt-4 h-96">
+                <h3 className="text-xl font-semibold mb-2 text-gray-800">Puntaje Promedio por Pregunta - {selectedRoleForStats}</h3>
+                {teacherChartType === 'bar' ? (
+                  <div className="w-full h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={roleStatsData} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="question" />
+                        <YAxis domain={[0, 3]} />
+                        <Tooltip content={<ChartTooltipWithFullQuestion />} />
+                        <Legend />
+                        <Bar dataKey="score" fill="#3b82f6" name="Puntaje Promedio">
+                          <LabelList dataKey="score" position="top" style={{ fill: '#4A5568', fontSize: '12px' }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="w-full h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={roleStatsData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="question" style={{ fontSize: '0.8rem' }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 3]} />
+                        <Radar name="Puntaje Promedio" dataKey="score" stroke="#34d399" fill="#a7f3d0" fillOpacity={0.6} />
+                        <Tooltip content={<ChartTooltipWithFullQuestion />} />
+                        <Legend />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-lg font-semibold mb-3 text-gray-800">Estudiantes que evaluaron este rol</h4>
+                const roleEvals = evaluacionesRol.filter(e => e.role === selectedRoleForStats);
+                {roleEvals.length === 0 ? (
+                  <p className="text-center text-gray-500">No hay evaluaciones para este rol.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-gray-600">
+                      <thead className="bg-gray-100 text-sm text-gray-800">
+                        <tr>
+                          <th scope="col" className="px-6 py-3">Estudiante</th>
+                          <th scope="col" className="px-6 py-3 text-center">Puntaje Promedio</th>
+                          <th scope="col" className="px-6 py-3">Fecha</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {roleEvals.map(e => {
+                          const scores = e.answers.map((ans, i) => {
+                            if (ans === PrimaryRating.Never) return 1;
+                            if (ans === PrimaryRating.Sometimes) return 2;
+                            if (ans === PrimaryRating.Always) return 3;
+                            return 0;
+                          }).filter(s => s > 0);
+                          const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+                          return (
+                            <tr key={e.id} className="bg-white border-b hover:bg-gray-50">
+                              <td className="px-6 py-4 font-bold">{e.studentName}</td>
+                              <td className="text-center px-6 py-4">{parseFloat(avg.toFixed(2))}</td>
+                              <td className="px-6 py-4 text-sm text-gray-500">{new Date(e.timestamp).toLocaleDateString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-gray-200 flex justify-center">
+                <button
+                  disabled={!process.env.API_KEY}
+                  onClick={async () => {
+                    if (!process.env.API_KEY) {
+                      alert("La clave API de Google no está configurada.");
+                      return;
+                    }
+                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                    const roleEvals = evaluacionesRol.filter(e => e.role === selectedRoleForStats);
+                    const questionsForRole = roleQuestions
+                      .filter(q => q.role === selectedRoleForStats)
+                      .sort((a, b) => a.order - b.order);
+                    
+                    const promptData = roleStatsData.map(d => `- "${d.fullQuestion}": ${d.score.toFixed(2)}`).join('\n');
+                    
+                    const prompt = `
+Eres un experto en pedagogía y análisis de datos educativos.
+A continuación se presentan los resultados de evaluación para el rol: ${selectedRoleForStats}.
+Resultados (Pregunta: Puntaje Promedio de 1 a 3):
+${promptData}
+Total de evaluaciones: ${roleEvals.length}
+
+Genera un análisis constructivo en español, texto plano sin Markdown, con secciones: Resumen General, Fortalezas, Áreas de Oportunidad y Sugerencias Accionables.
+                    `;
+                    
+                    try {
+                      const response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash',
+                        contents: prompt,
+                      });
+                      alert(response.text);
+                    } catch (error) {
+                      console.error("Error:", error);
+                      alert("Error al generar resumen con IA.");
+                    }
+                  }}
+                  className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {!process.env.API_KEY ? (
+                    <span>Configurar API Key</span>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 mr-2"><path d="M12 3c-1.2 0-2.4.6-3 1.7A3.5 3.5 0 0 0 5.5 8c0 2 2 3.5 3.5 3.5s3.5-1.5 3.5-3.5A3.5 3.5 0 0 0 9 4.7c-.6-1.1-1.8-1.7-3-1.7Z"></path><path d="m12 12 1.4-1.4a2 2 0 0 1 2.8 0L17 11.4a2 2 0 0 1 0 2.8L12 20l-5-5a2 2 0 0 1 0-2.8l.8-.8a2 2 0 0 1 2.8 0L12 12v0Z"></path></svg>
+                      Generar Resumen con IA
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+          {roleStatsData.length === 0 && evaluacionesRol.length > 0 && (
+            <p className="text-center text-gray-500 mt-8">No hay evaluaciones para el rol {selectedRoleForStats}.</p>
+          )}
+          {evaluacionesRol.length === 0 && (
+            <p className="text-center text-gray-500 mt-8">Aún no hay evaluaciones de personal del colegio.</p>
+          )}
+        </div>
+      </Section>
+
       {isDeleteConfirmVisible && (
         <StatisticsAuthModal
             onClose={() => setDeleteConfirmVisible(false)}

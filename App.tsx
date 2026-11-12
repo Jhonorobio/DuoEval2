@@ -434,6 +434,8 @@ const App: React.FC = () => {
       case 'statistics':
         return <StatisticsView 
             evaluations={evaluations} 
+            evaluacionesRol={evaluacionesRol}
+            roleQuestions={roleQuestions}
             onBack={() => setView('nameEntry')} 
             grades={grades}
             teachers={teachers}
@@ -462,6 +464,7 @@ const App: React.FC = () => {
             setHighSchoolQuestions={setHighSchoolQuestions}
             evaluations={evaluations}
             setEvaluations={setEvaluations}
+            evaluacionesRol={evaluacionesRol}
             onEditSubjectIcon={setEditingSubject}
             onEditTeacher={setTeacherToEdit}
             onDeleteStudentEvaluations={handleDeleteStudentEvaluations}

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import supabase from '../supabaseClient';
-import { Grade, Subject, Teacher, EvaluationLevel, Evaluation } from '../types';
+import { Grade, Subject, Teacher, EvaluationLevel, Evaluation, EvaluacionRol, RolEvaluacion } from '../types';
 import { ArrowLeftIcon, XCircleIcon } from '../components/Icons';
 import { AdminMenuCard } from '../components/admin/AdminMenuCard';
 import { TeacherCard } from '../components/admin/TeacherCard';
@@ -27,6 +27,7 @@ interface AdminViewProps {
     setHighSchoolQuestions: React.Dispatch<React.SetStateAction<string[]>>;
     evaluations: Evaluation[];
     setEvaluations: React.Dispatch<React.SetStateAction<Evaluation[]>>;
+    evaluacionesRol: EvaluacionRol[];
     onEditSubjectIcon: (subject: Subject) => void;
     onEditTeacher: (teacher: Teacher | 'new') => void;
     onDeleteStudentEvaluations: (studentName: string) => Promise<void>;
@@ -37,7 +38,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
     const { 
         onBack, grades, setGrades, teachers, setTeachers, subjects, setSubjects, 
         primaryQuestions, setPrimaryQuestions, highSchoolQuestions, setHighSchoolQuestions,
-        evaluations, setEvaluations,
+        evaluations, setEvaluations, evaluacionesRol,
         onEditSubjectIcon, onEditTeacher,
         onDeleteStudentEvaluations, onStartEditEvaluation
     } = props;
@@ -55,6 +56,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
     const [evaluationForAuth, setEvaluationForAuth] = useState<Evaluation | null>(null);
     const [isAuthModalVisible, setAuthModalVisible] = useState(false);
     const [selectedGradeForProgress, setSelectedGradeForProgress] = useState<string>('');
+    const [selectedRoleForDataTools, setSelectedRoleForDataTools] = useState<RolEvaluacion>('COORDINADORA');
 
     const studentsInSelectedGrade = useMemo(() => {
         if (!selectedGradeForDataTools) return [];
@@ -97,7 +99,8 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
         });
         const validAssignments = Array.from(uniqueValidAssignmentsMap.values());
 
-        const totalAssignments = validAssignments.length;
+        const rolesTotales = 4; // Coordinadora, Rectora, Aseo, Vigilante
+        const totalAssignments = validAssignments.length + rolesTotales;
         if (totalAssignments === 0) return [];
 
         const studentsInGrade = [...new Set(evaluations
@@ -109,26 +112,41 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
             const studentEvaluations = evaluations.filter(e => 
                 e.studentName === studentName && e.gradeId === gradeId
             );
+            const studentRoleEvals = evaluacionesRol.filter(e => e.studentName === studentName);
+            const rolesCompletados = new Set(studentRoleEvals.map(e => e.role));
 
-            const completedCount = validAssignments.filter(assignment =>
+            const materiasCompletadas = validAssignments.filter(assignment =>
                 studentEvaluations.some(ev =>
                     ev.subjectId === assignment.subjectId && ev.teacherId === assignment.teacherId
                 )
             ).length;
 
-            const pendingAssignments = validAssignments
+            const completedCount = materiasCompletadas + rolesCompletados.size;
+
+            const pendingMaterias = validAssignments
                 .filter(a => !studentEvaluations.some(ev => ev.subjectId === a.subjectId && ev.teacherId === a.teacherId))
                 .map(a => subjects.find(s => s.id === a.subjectId)?.name)
                 .filter((name): name is string => !!name);
+
+            const rolesNombres: Record<RolEvaluacion, string> = {
+                COORDINADORA: 'Coordinadora',
+                RECTORA: 'Rectora',
+                ASEO: 'Personal de Aseo',
+                VIGILANTE: 'Vigilante'
+            };
+
+            const pendingRoles = ['COORDINADORA', 'RECTORA', 'ASEO', 'VIGILANTE']
+                .filter(r => !rolesCompletados.has(r))
+                .map(r => rolesNombres[r]);
 
             return {
                 name: studentName,
                 completedCount,
                 totalAssignments,
-                pendingAssignments,
+                pendingAssignments: [...pendingMaterias, ...pendingRoles],
             };
         }).sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    }, [selectedGradeForProgress, evaluations, grades, subjects, teachers]);
+    }, [selectedGradeForProgress, evaluations, grades, subjects, teachers, evaluacionesRol]);
 
     const handleDeleteStudentData = () => {
         if (!selectedStudent) return;
@@ -486,6 +504,80 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                                 </div>
                             </div>
                         )}
+                        
+                        {/* Gestión de Evaluaciones por Rol */}
+                        <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200">
+                            <h4 className="text-2xl font-bold text-gray-800 mb-4">Evaluaciones por Rol de Personal</h4>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div>
+                                    <label htmlFor="role-select-datatools" className="block text-xl font-bold text-gray-700 mb-2">Selecciona un Rol</label>
+                                    <select
+                                        id="role-select-datatools"
+                                        value={selectedRoleForDataTools}
+                                        onChange={e => setSelectedRoleForDataTools(e.target.value as RolEvaluacion)}
+                                        className="w-full p-3 text-lg border-2 border-gray-200 rounded-lg"
+                                    >
+                                        <option value="COORDINADORA">Coordinadora</option>
+                                        <option value="RECTORA">Rectora</option>
+                                        <option value="ASEO">Personal de Aseo</option>
+                                        <option value="VIGILANTE">Vigilante</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-end">
+                                    <button
+                                        onClick={() => {
+                                            const roleEvals = evaluacionesRol.filter(e => e.role === selectedRoleForDataTools);
+                                            if (roleEvals.length === 0) {
+                                                alert("No hay evaluaciones para este rol.");
+                                                return;
+                                            }
+                                            if (confirm(`¿Eliminar todas las evaluaciones de ${selectedRoleForDataTools}?`)) {
+                                                // Eliminar por rol
+                                                evaluacionesRol.filter(e => e.role === selectedRoleForDataTools).forEach(async (e) => {
+                                                    await supabase.from('evaluaciones_rol').delete().eq('id', e.id);
+                                                });
+                                                alert("Evaluaciones eliminadas.");
+                                            }
+                                        }}
+                                        className="font-bold py-2 px-5 rounded-lg transition-colors bg-red-600 text-white border-b-4 border-red-800 hover:bg-red-500"
+                                    >
+                                        Eliminar Evaluaciones de este Rol
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div className="mt-6 overflow-x-auto">
+                                <table className="w-full text-left text-gray-600">
+                                    <thead className="bg-gray-100 text-sm text-gray-800">
+                                        <tr>
+                                            <th scope="col" className="px-6 py-3">Estudiante</th>
+                                            <th scope="col" className="px-6 py-3 text-center">Puntaje Promedio</th>
+                                            <th scope="col" className="px-6 py-3">Fecha</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {evaluacionesRol
+                                            .filter(e => e.role === selectedRoleForDataTools)
+                                            .map(e => {
+                                                const scores = e.answers.map((ans: any) => {
+                                                    if (ans === 'NEVER') return 1;
+                                                    if (ans === 'SOMETIMES') return 2;
+                                                    if (ans === 'ALWAYS') return 3;
+                                                    return 0;
+                                                }).filter(s => s > 0);
+                                                const avg = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+                                                return (
+                                                    <tr key={e.id} className="bg-white border-b hover:bg-gray-50">
+                                                        <td className="px-6 py-4 font-bold">{e.studentName}</td>
+                                                        <td className="text-center px-6 py-4">{parseFloat(avg.toFixed(2))}</td>
+                                                        <td className="px-6 py-4 text-sm text-gray-500">{new Date(e.timestamp).toLocaleDateString()}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 );
             case 'studentProgress':
