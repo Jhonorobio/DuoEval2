@@ -53,6 +53,23 @@ export interface EvaluationTarget {
   subject: Subject;
 }
 
+export type RolEvaluacion = 'COORDINADORA' | 'RECTORA' | 'ASEO' | 'VIGILANTE';
+
+export interface RolPregunta {
+  id: number;
+  role: RolEvaluacion;
+  order: number;
+  text: string;
+}
+
+export interface EvaluacionRol {
+  id: string;
+  studentName: string;
+  role: RolEvaluacion;
+  answers: Answer[];
+  timestamp: number;
+}
+
 export interface ChartData {
   question: string;
   score: number;

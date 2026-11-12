@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import supabase from '../supabaseClient';
-import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer, EvaluationLevel } from '../types';
+import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer, EvaluationLevel, RolPregunta } from '../types';
 
 export const useAppData = () => {
     const [grades, setGrades] = useState<Grade[]>([]);
@@ -10,6 +10,7 @@ export const useAppData = () => {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [primaryQuestions, setPrimaryQuestions] = useState<string[]>([]);
     const [highSchoolQuestions, setHighSchoolQuestions] = useState<string[]>([]);
+    const [roleQuestions, setRoleQuestions] = useState<RolPregunta[]>([]);
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [isGradeLockEnabled, setGradeLockEnabled] = useState<boolean>(false);
     const [isTeacherFilterEnabled, setTeacherFilterEnabled] = useState<boolean>(false);
@@ -25,14 +26,16 @@ export const useAppData = () => {
                     subjectsRes,
                     questionsRes,
                     settingsRes,
-                    evaluationsRes
+                    evaluationsRes,
+                    rolesRes
                 ] = await Promise.all([
                     supabase.from('grades').select('*, assignments(*)'),
                     supabase.from('teachers').select('*'),
                     supabase.from('subjects').select('*'),
                     supabase.from('questions').select('*').order('order'),
                     supabase.from('settings').select('*'),
-                    supabase.from('evaluations').select('*')
+                    supabase.from('evaluations').select('*'),
+                    supabase.from('questions_rol').select('*').order('order')
                 ]);
 
                 if (gradesRes.error) throw new Error(`Error fetching grades: ${gradesRes.error.message}`);
@@ -41,6 +44,7 @@ export const useAppData = () => {
                 if (questionsRes.error) throw new Error(`Error fetching questions: ${questionsRes.error.message}`);
                 if (settingsRes.error) throw new Error(`Error fetching settings: ${settingsRes.error.message}`);
                 if (evaluationsRes.error) throw new Error(`Error fetching evaluations: ${evaluationsRes.error.message}`);
+                if (rolesRes.error) throw new Error(`Error fetching role questions: ${rolesRes.error.message}`);
                 
                 let dbGrades = gradesRes.data;
                 // Ensure Preschool grade exists in the DB, otherwise creating assignments for it will fail.
@@ -72,6 +76,7 @@ export const useAppData = () => {
                 setSubjects(subjectsRes.data);
                 setPrimaryQuestions(questionsRes.data.filter(q => q.level === 'PRIMARY').map(q => q.text));
                 setHighSchoolQuestions(questionsRes.data.filter(q => q.level === 'HIGH_SCHOOL').map(q => q.text));
+                setRoleQuestions(rolesRes.data);
 
                 const settingsMap = new Map(settingsRes.data.map(s => [s.key, s.value]));
                 setGradeLockEnabled(settingsMap.get('grade_lock_enabled') === true);
@@ -107,6 +112,7 @@ export const useAppData = () => {
         evaluations, setEvaluations,
         isGradeLockEnabled, setGradeLockEnabled,
         isTeacherFilterEnabled, setTeacherFilterEnabled,
+        roleQuestions, setRoleQuestions,
         isLoading
     };
 };

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import supabase from './supabaseClient';
-import { Answer, Evaluation, EvaluationTarget, Grade, PrimaryRating, Teacher, Subject, TeachingAssignment } from './types';
+import { Answer, Evaluation, EvaluationTarget, Grade, PrimaryRating, RolEvaluacion, RolPregunta, Teacher, Subject, TeachingAssignment } from './types';
 import { useAppData } from './hooks/useAppData';
 import { NameEntryView } from './routes/NameEntry';
 import { GradeSelectionView } from './routes/GradeSelection';
@@ -11,6 +11,7 @@ import { StatisticsView } from './routes/Statistics';
 import { CsvVisualizerView } from './routes/CsvVisualizer';
 import { FinalCompletionView } from './routes/FinalCompletion';
 import { AdminView } from './routes/Admin';
+import { RoleEvaluationView } from './routes/RoleEvaluation';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { StatisticsAuthModal } from './components/modals/StatisticsAuthModal';
 import { OptionsMenuModal } from './components/modals/OptionsMenuModal';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
     subjects, setSubjects,
     primaryQuestions, setPrimaryQuestions,
     highSchoolQuestions, setHighSchoolQuestions,
+    roleQuestions, setRoleQuestions,
     evaluations, setEvaluations,
     isGradeLockEnabled, setGradeLockEnabled,
     isTeacherFilterEnabled, setTeacherFilterEnabled,
@@ -40,6 +42,9 @@ const App: React.FC = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showCompletionMessage, setShowCompletionMessage] = useState<boolean>(false);
   const [evaluationToEdit, setEvaluationToEdit] = useState<Evaluation | null>(null);
+  const [roleView, setRoleView] = useState<RolEvaluacion | null>(null);
+  const [roleAnswers, setRoleAnswers] = useState<Answer[]>([]);
+  const [roleQuestionIndex, setRoleQuestionIndex] = useState(0);
   
   const [isGradeChangeAuthVisible, setGradeChangeAuthVisible] = useState<boolean>(false);
   const [isOptionsMenuVisible, setOptionsMenuVisible] = useState<boolean>(false);
@@ -328,6 +333,62 @@ const App: React.FC = () => {
       }
   };
 
+  const startRoleEvaluation = (role: RolEvaluacion) => {
+    setRoleView(role);
+    setRoleAnswers([]);
+    setRoleQuestionIndex(0);
+    setView('roleEvaluation');
+  };
+
+  const handleRoleAnswer = (answer: Answer) => {
+    const newAnswers = [...roleAnswers];
+    newAnswers[roleQuestionIndex] = answer;
+    setRoleAnswers(newAnswers);
+  };
+
+  const nextRoleQuestion = async () => {
+    if (!roleView) return;
+
+    const questions = roleQuestions.filter(q => q.role === roleView);
+
+    if (roleQuestionIndex < questions.length - 1) {
+      setRoleQuestionIndex(roleQuestionIndex + 1);
+    } else {
+      const evaluationData = {
+        student_name: studentName,
+        role: roleView,
+        answers: roleAnswers,
+      };
+
+      const { data, error } = await supabase.from('evaluaciones_rol').insert([evaluationData]).select();
+
+      if (error) {
+        console.error("Error saving role evaluation:", error);
+        alert("Hubo un error al guardar la evaluación. Por favor, intenta de nuevo.");
+        return;
+      }
+
+      setRoleView(null);
+      setRoleAnswers([]);
+      setRoleQuestionIndex(0);
+      setView('dashboard');
+      alert("Evaluación guardada con éxito.");
+    }
+  };
+
+  const previousRoleQuestion = () => {
+    if (roleQuestionIndex > 0) {
+      setRoleQuestionIndex(roleQuestionIndex - 1);
+    }
+  };
+
+  const exitRoleEvaluation = () => {
+    setRoleView(null);
+    setRoleAnswers([]);
+    setRoleQuestionIndex(0);
+    setView('dashboard');
+  };
+
   const renderView = () => {
     switch (view) {
       case 'nameEntry':
@@ -366,6 +427,7 @@ const App: React.FC = () => {
             subjects={subjects}
             primaryQuestions={primaryQuestions}
             highSchoolQuestions={highSchoolQuestions}
+            onStartRoleEvaluation={startRoleEvaluation}
         />;
       case 'statistics':
         return <StatisticsView 
@@ -403,6 +465,29 @@ const App: React.FC = () => {
             onDeleteStudentEvaluations={handleDeleteStudentEvaluations}
             onStartEditEvaluation={handleStartEditEvaluation}
         />;
+      case 'roleEvaluation':
+        if (!roleView) return null;
+        const questionsForRole = roleQuestions.filter(q => q.role === roleView);
+        const roleNames: Record<RolEvaluacion, string> = {
+          COORDINADORA: 'Coordinadora',
+          RECTORA: 'Rectora',
+          ASEO: 'Personal de Aseo',
+          VIGILANTE: 'Vigilante'
+        };
+        return (
+          <RoleEvaluationView
+            role={roleView}
+            roleName={roleNames[roleView]}
+            question={questionsForRole[roleQuestionIndex]?.text || ''}
+            questionIndex={roleQuestionIndex + 1}
+            totalQuestions={questionsForRole.length}
+            currentAnswer={roleAnswers[roleQuestionIndex]}
+            onAnswer={handleRoleAnswer}
+            onNext={nextRoleQuestion}
+            onPrevious={previousRoleQuestion}
+            onExit={exitRoleEvaluation}
+          />
+        );
       default:
         return <div>Error</div>;
     }
