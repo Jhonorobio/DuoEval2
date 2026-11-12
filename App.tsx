@@ -28,6 +28,7 @@ const App: React.FC = () => {
     primaryQuestions, setPrimaryQuestions,
     highSchoolQuestions, setHighSchoolQuestions,
     roleQuestions, setRoleQuestions,
+    evaluacionesRol, setEvaluacionesRol,
     evaluations, setEvaluations,
     isGradeLockEnabled, setGradeLockEnabled,
     isTeacherFilterEnabled, setTeacherFilterEnabled,
@@ -428,6 +429,7 @@ const App: React.FC = () => {
             primaryQuestions={primaryQuestions}
             highSchoolQuestions={highSchoolQuestions}
             onStartRoleEvaluation={startRoleEvaluation}
+            evaluacionesRol={evaluacionesRol}
         />;
       case 'statistics':
         return <StatisticsView 

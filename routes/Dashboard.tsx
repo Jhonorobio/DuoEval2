@@ -1,7 +1,7 @@
 
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Grade, Evaluation, EvaluationTarget, Answer, Teacher, Subject } from '../types';
+import { Grade, Evaluation, EvaluationTarget, Answer, Teacher, Subject, EvaluacionRol, RolEvaluacion } from '../types';
 import { CheckCircleIcon, ArrowLeftIcon, XIcon } from '../components/Icons';
 import { IconRenderer } from '../components/ui/IconRenderer';
 import { EvaluationView } from './Evaluation';
@@ -27,6 +27,7 @@ interface DashboardViewProps {
     primaryQuestions: string[];
     highSchoolQuestions: string[];
     onStartRoleEvaluation: (role: string) => void;
+    evaluacionesRol: EvaluacionRol[];
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = (props) => {
@@ -34,11 +35,16 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
         studentName, grade, evaluations, onStartEvaluation, showCompletionMessage, onCompleteAnother, onChangeGrade, 
         currentEvaluationTarget, currentAnswers, currentQuestionIndex, handleAnswer, nextQuestion, 
         previousQuestion, exitEvaluation, grades, teachers, subjects, primaryQuestions, highSchoolQuestions,
-        onStartRoleEvaluation
+        onStartRoleEvaluation, evaluacionesRol
     } = props;
     
     const [showCompleted, setShowCompleted] = useState(false);
     const [showAllPending, setShowAllPending] = useState(false);
+
+    const rolesCompletados = useMemo(() => {
+        const rolesEval = evaluacionesRol.filter(e => e.studentName === studentName);
+        return new Set(rolesEval.map(e => e.role));
+    }, [evaluacionesRol, studentName]);
 
     const { pendingAssignments, completedAssignments } = useMemo(() => {
         const gradeDef = grades.find(g => g.id === grade.id);
@@ -192,34 +198,35 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                 <h2 className="text-2xl font-bold text-gray-700 mb-4">Evaluar al personal del colegio</h2>
                 <p className="text-gray-600 mb-6">También puedes evaluar a otros miembros del colegio:</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <button
-                        onClick={() => onStartRoleEvaluation('COORDINADORA')}
-                        className="p-4 bg-white rounded-2xl border-2 border-gray-200 text-center hover:bg-gray-50 transition-colors"
-                    >
-                        <div className="text-3xl mb-2">👩‍💼</div>
-                        <div className="font-bold text-gray-900 text-sm">Coordinadora</div>
-                    </button>
-                    <button
-                        onClick={() => onStartRoleEvaluation('RECTORA')}
-                        className="p-4 bg-white rounded-2xl border-2 border-gray-200 text-center hover:bg-gray-50 transition-colors"
-                    >
-                        <div className="text-3xl mb-2">👩‍🏫</div>
-                        <div className="font-bold text-gray-900 text-sm">Rectora</div>
-                    </button>
-                    <button
-                        onClick={() => onStartRoleEvaluation('ASEO')}
-                        className="p-4 bg-white rounded-2xl border-2 border-gray-200 text-center hover:bg-gray-50 transition-colors"
-                    >
-                        <div className="text-3xl mb-2">🧹</div>
-                        <div className="font-bold text-gray-900 text-sm">Personal de Aseo</div>
-                    </button>
-                    <button
-                        onClick={() => onStartRoleEvaluation('VIGILANTE')}
-                        className="p-4 bg-white rounded-2xl border-2 border-gray-200 text-center hover:bg-gray-50 transition-colors"
-                    >
-                        <div className="text-3xl mb-2">👮</div>
-                        <div className="font-bold text-gray-900 text-sm">Vigilante</div>
-                    </button>
+                    {[
+                        { role: 'COORDINADORA' as RolEvaluacion, name: 'Coordinadora', emoji: '👩‍💼' },
+                        { role: 'RECTORA' as RolEvaluacion, name: 'Rectora', emoji: '👩‍🏫' },
+                        { role: 'ASEO' as RolEvaluacion, name: 'Personal de Aseo', emoji: '🧹' },
+                        { role: 'VIGILANTE' as RolEvaluacion, name: 'Vigilante', emoji: '👮' },
+                    ].map(({ role, name, emoji }) => {
+                        const yaCompletado = rolesCompletados.has(role);
+                        return (
+                            <button
+                                key={role}
+                                onClick={yaCompletado ? undefined : () => onStartRoleEvaluation(role)}
+                                disabled={yaCompletado}
+                                className={`p-4 rounded-2xl text-center transition-colors ${yaCompletado
+                                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                    : 'border-2 border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
+                                }`}
+                            >
+                                <div className={`text-3xl mb-2 ${yaCompletado ? 'opacity-50' : ''}`}>{emoji}</div>
+                                <div className={`font-bold text-sm ${yaCompletado ? 'text-gray-400' : 'text-gray-900'}`}>
+                                    {name}
+                                </div>
+                                {yaCompletado && (
+                                    <div className="text-[10px] text-green-600 bg-green-100 px-2 py-0.5 rounded mt-2">
+                                    <CheckCircleIcon className="w-3 h-3 mr-1" /> Completado
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import supabase from '../supabaseClient';
-import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer, EvaluationLevel, RolPregunta } from '../types';
+import { Grade, Teacher, Subject, Evaluation, TeachingAssignment, Answer, EvaluationLevel, RolPregunta, EvaluacionRol, RolEvaluacion } from '../types';
 
 export const useAppData = () => {
     const [grades, setGrades] = useState<Grade[]>([]);
@@ -12,6 +12,7 @@ export const useAppData = () => {
     const [highSchoolQuestions, setHighSchoolQuestions] = useState<string[]>([]);
     const [roleQuestions, setRoleQuestions] = useState<RolPregunta[]>([]);
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
+    const [evaluacionesRol, setEvaluacionesRol] = useState<EvaluacionRol[]>([]);
     const [isGradeLockEnabled, setGradeLockEnabled] = useState<boolean>(false);
     const [isTeacherFilterEnabled, setTeacherFilterEnabled] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -27,7 +28,8 @@ export const useAppData = () => {
                     questionsRes,
                     settingsRes,
                     evaluationsRes,
-                    rolesRes
+                    rolesRes,
+                    evaluacionesRolRes
                 ] = await Promise.all([
                     supabase.from('grades').select('*, assignments(*)'),
                     supabase.from('teachers').select('*'),
@@ -35,7 +37,8 @@ export const useAppData = () => {
                     supabase.from('questions').select('*').order('order'),
                     supabase.from('settings').select('*'),
                     supabase.from('evaluations').select('*'),
-                    supabase.from('questions_rol').select('*').order('order')
+                    supabase.from('questions_rol').select('*').order('order'),
+                    supabase.from('evaluaciones_rol').select('*')
                 ]);
 
                 if (gradesRes.error) throw new Error(`Error fetching grades: ${gradesRes.error.message}`);
@@ -45,6 +48,7 @@ export const useAppData = () => {
                 if (settingsRes.error) throw new Error(`Error fetching settings: ${settingsRes.error.message}`);
                 if (evaluationsRes.error) throw new Error(`Error fetching evaluations: ${evaluationsRes.error.message}`);
                 if (rolesRes.error) throw new Error(`Error fetching role questions: ${rolesRes.error.message}`);
+                if (evaluacionesRolRes.error) throw new Error(`Error fetching role evaluations: ${evaluacionesRolRes.error.message}`);
                 
                 let dbGrades = gradesRes.data;
                 // Ensure Preschool grade exists in the DB, otherwise creating assignments for it will fail.
@@ -93,6 +97,15 @@ export const useAppData = () => {
                 }));
                 setEvaluations(fetchedEvaluations);
 
+                const fetchedEvaluacionesRol: EvaluacionRol[] = evaluacionesRolRes.data.map((e: any) => ({
+                    id: e.id,
+                    studentName: e.student_name,
+                    role: e.role as RolEvaluacion,
+                    answers: e.answers as Answer[],
+                    timestamp: new Date(e.timestamp).getTime(),
+                }));
+                setEvaluacionesRol(fetchedEvaluacionesRol);
+
             } catch (error) {
                 console.error("Error fetching data:", error);
             } finally {
@@ -113,6 +126,7 @@ export const useAppData = () => {
         isGradeLockEnabled, setGradeLockEnabled,
         isTeacherFilterEnabled, setTeacherFilterEnabled,
         roleQuestions, setRoleQuestions,
+        evaluacionesRol, setEvaluacionesRol,
         isLoading
     };
 };
