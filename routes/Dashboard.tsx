@@ -135,7 +135,11 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                     <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight m-0">Grado: {grade.name}</h1>
                     <div className="flex items-center gap-4 mt-1">
                         <p className="text-xl text-gray-600 m-0">
-                           {pendingAssignments.length > 0 ? 'Selecciona una materia para comenzar.' : '¡Has completado todas las materias!'}
+                           {pendingAssignments.length > 0
+                                ? 'Selecciona una materia para comenzar.'
+                                : rolesCompletados.size < 4
+                                    ? '¡Materias completadas! Ahora evalúa al personal del colegio.'
+                                    : '¡Has completado todas las materias!'}
                         </p>
                         {completedAssignments.length > 0 && (
                             <button 
@@ -197,7 +201,7 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
             <div className="mt-8 pt-6 border-t-2 border-gray-200 animate-fade">
                 <h2 className="text-2xl font-bold text-gray-700 mb-4">Evaluar al personal del colegio</h2>
                 <p className="text-gray-600 mb-6">También puedes evaluar a otros miembros del colegio:</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                     {[
                         { role: 'COORDINADORA' as RolEvaluacion, name: 'Coordinadora', emoji: '👩‍💼' },
                         { role: 'RECTORA' as RolEvaluacion, name: 'Rectora', emoji: '👩‍🏫' },
@@ -206,25 +210,32 @@ export const DashboardView: React.FC<DashboardViewProps> = (props) => {
                     ].map(({ role, name, emoji }) => {
                         const yaCompletado = rolesCompletados.has(role);
                         return (
-                            <button
+                            <div
                                 key={role}
-                                onClick={yaCompletado ? undefined : () => onStartRoleEvaluation(role)}
-                                disabled={yaCompletado}
-                                className={`p-4 rounded-2xl text-center transition-colors ${yaCompletado
-                                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                                    : 'border-2 border-gray-200 bg-white text-gray-900 hover:bg-gray-50'
-                                }`}
+                                className={`bg-white rounded-2xl border-2 p-3 text-center flex flex-col justify-between ${yaCompletado ? 'border-gray-200 bg-gray-50' : 'border-gray-200'}`}
                             >
-                                <div className={`text-3xl mb-2 ${yaCompletado ? 'opacity-50' : ''}`}>{emoji}</div>
-                                <div className={`font-bold text-sm ${yaCompletado ? 'text-gray-400' : 'text-gray-900'}`}>
-                                    {name}
+                                <div className="flex flex-col items-center flex-grow justify-center mb-3">
+                                    <div className={`text-5xl ${yaCompletado ? 'opacity-40' : ''}`}>{emoji}</div>
+                                    <p className={`font-extrabold text-3xl mt-2 ${yaCompletado ? 'text-gray-600' : 'text-gray-900'}`}>{name}</p>
                                 </div>
-                                {yaCompletado && (
-                                    <div className="text-[10px] text-green-600 bg-green-100 px-2 py-0.5 rounded mt-2">
-                                    <CheckCircleIcon className="w-3 h-3 mr-1" /> Completado
-                                    </div>
+
+                                {yaCompletado ? (
+                                    <button
+                                        disabled
+                                        className="w-full flex items-center justify-center text-gray-600 font-extrabold uppercase text-lg py-2 rounded-2xl border-b-8 border-gray-300 bg-gray-200 cursor-not-allowed"
+                                    >
+                                        <CheckCircleIcon className="w-5 h-5 mr-2" />
+                                        Completado
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => onStartRoleEvaluation(role)}
+                                        className="w-full text-white font-extrabold uppercase text-lg py-2 rounded-2xl border-b-8 border-green-700 bg-green-500 transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0"
+                                    >
+                                        Evaluar
+                                    </button>
                                 )}
-                            </button>
+                            </div>
                         );
                     })}
                 </div>

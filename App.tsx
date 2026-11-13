@@ -169,7 +169,18 @@ const App: React.FC = () => {
                 ).length;
 
                 if (completedCount >= totalValidAssignments) {
-                    setView('finalCompletion');
+                    // Solo finalizar si tambien completó las evaluaciones de personal del colegio
+                    const rolesDone = new Set(
+                        evaluacionesRol.filter(e => e.studentName === studentName).map(e => e.role)
+                    );
+                    const allRolesDone = (['COORDINADORA', 'RECTORA', 'ASEO', 'VIGILANTE'] as RolEvaluacion[])
+                        .every(r => rolesDone.has(r));
+
+                    if (allRolesDone) {
+                        setView('finalCompletion');
+                    } else {
+                        setShowCompletionMessage(true);
+                    }
                 } else {
                     setShowCompletionMessage(true);
                 }
@@ -392,14 +403,41 @@ const App: React.FC = () => {
           answers: saved.answers as Answer[],
           timestamp: new Date(saved.timestamp).getTime(),
         };
-        setEvaluacionesRol(prev => [...prev, nuevaEval]);
+        const nuevasEvaluacionesRol = [...evaluacionesRol, nuevaEval];
+        setEvaluacionesRol(nuevasEvaluacionesRol);
+
+        // Si ya completó materias y todos los roles, ir a la vista de finalización
+        const rolesDone = new Set(nuevasEvaluacionesRol.filter(e => e.studentName === studentName).map(e => e.role));
+        const allRolesDone = (['COORDINADORA', 'RECTORA', 'ASEO', 'VIGILANTE'] as RolEvaluacion[])
+            .every(r => rolesDone.has(r));
+
+        if (allRolesDone && selectedGrade) {
+            const gradeDef = grades.find(g => g.id === selectedGrade.id);
+            if (gradeDef) {
+                const validAssignments = gradeDef.assignments.filter(a =>
+                    teachers.some(t => t.id === a.teacherId) &&
+                    subjects.some(s => s.id === a.subjectId)
+                );
+                const studentEvals = evaluations.filter(e => e.studentName === studentName && e.gradeId === selectedGrade.id);
+                const allSubjectsDone = validAssignments.every(a =>
+                    studentEvals.some(ev => ev.subjectId === a.subjectId && ev.teacherId === a.teacherId)
+                );
+                if (allSubjectsDone) {
+                    setRoleView(null);
+                    setRoleAnswers([]);
+                    setRoleQuestionIndex(0);
+                    setView('finalCompletion');
+                    return;
+                }
+            }
+        }
       }
 
       setRoleView(null);
       setRoleAnswers([]);
       setRoleQuestionIndex(0);
       setView('dashboard');
-      alert("Evaluación guardada con éxito.");
+      setShowCompletionMessage(true);
     }
   };
 
