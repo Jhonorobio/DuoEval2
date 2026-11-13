@@ -183,6 +183,30 @@ export type Database = {
           },
         ]
       }
+      evaluaciones_rol: {
+        Row: {
+          answers: Json
+          id: string
+          role: string
+          student_name: string
+          timestamp: string
+        }
+        Insert: {
+          answers: Json
+          id?: string
+          role: string
+          student_name: string
+          timestamp?: string
+        }
+        Update: {
+          answers?: Json
+          id?: string
+          role?: string
+          student_name?: string
+          timestamp?: string
+        }
+        Relationships: []
+      }
       grades: {
         Row: {
           id: number
@@ -218,6 +242,27 @@ export type Database = {
           id?: number
           level?: string
           order?: number
+          text?: string
+        }
+        Relationships: []
+      }
+      questions_rol: {
+        Row: {
+          id: number
+          order: number
+          role: string
+          text: string
+        }
+        Insert: {
+          id?: number
+          order: number
+          role: string
+          text: string
+        }
+        Update: {
+          id?: number
+          order?: number
+          role?: string
           text?: string
         }
         Relationships: []

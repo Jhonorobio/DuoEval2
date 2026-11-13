@@ -135,7 +135,7 @@ export const AdminView: React.FC<AdminViewProps> = (props) => {
                 VIGILANTE: 'Vigilante'
             };
 
-            const pendingRoles = ['COORDINADORA', 'RECTORA', 'ASEO', 'VIGILANTE']
+            const pendingRoles = (['COORDINADORA', 'RECTORA', 'ASEO', 'VIGILANTE'] as RolEvaluacion[])
                 .filter(r => !rolesCompletados.has(r))
                 .map(r => rolesNombres[r]);
 

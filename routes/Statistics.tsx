@@ -88,7 +88,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, eva
   }
   
   const { primaryGeneralData, highSchoolGeneralData } = useMemo(() => {
-    const statsByTeacherAndLevel = evaluations.reduce((acc, evaluation) => {
+    const statsByTeacherAndLevel = evaluations.reduce<Record<string, { teacherId: string, teacherName: string, level: EvaluationLevel, totalScore: number, totalAnswers: number, surveyCount: number }>>((acc, evaluation) => {
         const grade = grades.find(g => g.id === evaluation.gradeId);
         if (!grade || !evaluation.teacherId) return acc;
 
@@ -121,9 +121,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, eva
         });
 
         return acc;
-    // FIX: Provide an explicit type for the accumulator to prevent TypeScript from inferring it as `unknown`.
-    // This resolves multiple 'Property does not exist on type 'unknown'' errors throughout this `useMemo` block.
-    }, {} as Record<string, { teacherId: string, teacherName: string, level: EvaluationLevel, totalScore: number, totalAnswers: number, surveyCount: number }>);
+    // FIX: Explicit generic on reduce prevents TypeScript from inferring the accumulator as `unknown`.
+    }, {});
 
     const allTeacherIds = [...new Set(Object.values(statsByTeacherAndLevel).map(s => s.teacherId))];
     const teachersWithBothLevels = new Set(

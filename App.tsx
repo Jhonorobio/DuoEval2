@@ -18,7 +18,7 @@ import { OptionsMenuModal } from './components/modals/OptionsMenuModal';
 import { AddEditTeacherModal } from './components/modals/AddEditTeacherModal';
 import { SubjectIconModal } from './components/modals/SubjectIconModal';
 
-export type View = 'nameEntry' | 'gradeSelection' | 'dashboard' | 'statistics' | 'finalCompletion' | 'csvVisualizer' | 'admin';
+export type View = 'nameEntry' | 'gradeSelection' | 'dashboard' | 'statistics' | 'finalCompletion' | 'csvVisualizer' | 'admin' | 'roleEvaluation';
 
 const App: React.FC = () => {
   const {

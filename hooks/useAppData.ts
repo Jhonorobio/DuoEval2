@@ -80,7 +80,12 @@ export const useAppData = () => {
                 setSubjects(subjectsRes.data);
                 setPrimaryQuestions(questionsRes.data.filter(q => q.level === 'PRIMARY').map(q => q.text));
                 setHighSchoolQuestions(questionsRes.data.filter(q => q.level === 'HIGH_SCHOOL').map(q => q.text));
-                setRoleQuestions(rolesRes.data);
+                setRoleQuestions((rolesRes.data || []).map((q: any) => ({
+                    id: q.id,
+                    order: q.order,
+                    role: q.role as RolEvaluacion,
+                    text: q.text,
+                })));
 
                 const settingsMap = new Map(settingsRes.data.map(s => [s.key, s.value]));
                 setGradeLockEnabled(settingsMap.get('grade_lock_enabled') === true);
