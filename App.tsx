@@ -239,14 +239,27 @@ const App: React.FC = () => {
     const { error } = await supabase
         .from('evaluations')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); 
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
     if (error) {
         console.error("Error deleting evaluations:", error);
         alert("Hubo un error al borrar los datos. Por favor, inténtalo de nuevo.");
+        return;
+    }
+
+    // Borrar también las evaluaciones de roles del personal
+    const { error: errorRol } = await supabase
+        .from('evaluaciones_rol')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+    if (errorRol) {
+        console.error("Error deleting role evaluations:", errorRol);
+        alert("Las evaluaciones de profesores fueron borradas, pero hubo un error al borrar las evaluaciones de roles.");
     } else {
         setEvaluations([]);
-        alert("Todos los datos de las evaluaciones han sido borrados con éxito.");
+        setEvaluacionesRol([]);
+        alert("Todos los datos de las evaluaciones (profesores y personal) han sido borrados con éxito.");
     }
   };
   

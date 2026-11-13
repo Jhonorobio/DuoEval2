@@ -560,23 +560,27 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, eva
             </button>
             <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight m-0">Estadísticas</h1>
         </div>
-        {evaluations.length > 0 && (
+        {(evaluations.length > 0 || evaluacionesRol.length > 0) && (
             <div className="flex items-center gap-2">
-                 <button 
+                 {evaluations.length > 0 && (
+                 <button
                     onClick={onNavigateToVisualizer}
                     className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-purple-700 bg-purple-100 hover:bg-purple-200"
                 >
                     <UploadCloudIcon className="w-5 h-5 mr-2" />
                     Visualizar CSV
                 </button>
-                <button 
+                 )}
+                {evaluations.length > 0 && (
+                <button
                     onClick={handleExportAllData}
                     className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-sky-700 bg-sky-100 hover:bg-sky-200"
                 >
                     <DownloadIcon className="w-5 h-5 mr-2" />
                     Descargar Todo
                 </button>
-                <button 
+                )}
+                <button
                     onClick={() => setDeleteConfirmVisible(true)}
                     className="flex items-center text-sm font-bold py-2 px-4 rounded-lg transition-colors text-red-600 bg-red-100 hover:bg-red-200"
                 >
@@ -1005,7 +1009,7 @@ Genera un análisis constructivo en español, texto plano sin Markdown, con secc
                 setDeleteConfirmVisible(false);
             }}
             title="Confirmar Eliminación"
-            message="Esta acción es irreversible y borrará TODOS los datos de las evaluaciones. Ingresa la contraseña para confirmar."
+            message="Esta acción es irreversible y borrará TODOS los datos: evaluaciones de profesores y evaluaciones de personal del colegio (roles). Ingresa la contraseña para confirmar."
         />
       )}
     </div>
