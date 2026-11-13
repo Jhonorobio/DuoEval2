@@ -549,6 +549,8 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
     )
   }
 
+  const roleEvals = evaluacionesRol.filter(e => e.role === selectedRoleForStats);
+
   return (
     <div className="animate-fade flex flex-col gap-8">
       <div className="flex justify-between items-center">
@@ -901,7 +903,6 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onB
 
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h4 className="text-lg font-semibold mb-3 text-gray-800">Estudiantes que evaluaron este rol</h4>
-                const roleEvals = evaluacionesRol.filter(e => e.role === selectedRoleForStats);
                 {roleEvals.length === 0 ? (
                   <p className="text-center text-gray-500">No hay evaluaciones para este rol.</p>
                 ) : (
