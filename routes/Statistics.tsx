@@ -39,7 +39,7 @@ interface StatisticsViewProps {
     onNavigateToVisualizer: () => void;
 }
 
-export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
+export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, evaluacionesRol, roleQuestions, onBack, grades, teachers, subjects, primaryQuestions, highSchoolQuestions, onDeleteAll, onNavigateToVisualizer }) => {
   const [activeGeneralTab, setActiveGeneralTab] = useState<'primary' | 'highSchool'>('primary');
   const [selectedTeacherForAnalysis, setSelectedTeacherForAnalysis] = useState<string>('');
   const [selectedGradeForStudent, setSelectedGradeForStudent] = useState<string>('');

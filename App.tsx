@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import supabase from './supabaseClient';
-import { Answer, Evaluation, EvaluationTarget, Grade, PrimaryRating, RolEvaluacion, RolPregunta, Teacher, Subject, TeachingAssignment } from './types';
+import { Answer, Evaluation, EvaluationTarget, EvaluacionRol, Grade, PrimaryRating, RolEvaluacion, RolPregunta, Teacher, Subject, TeachingAssignment } from './types';
 import { useAppData } from './hooks/useAppData';
 import { NameEntryView } from './routes/NameEntry';
 import { GradeSelectionView } from './routes/GradeSelection';
@@ -367,6 +367,19 @@ const App: React.FC = () => {
         console.error("Error saving role evaluation:", error);
         alert("Hubo un error al guardar la evaluación. Por favor, intenta de nuevo.");
         return;
+      }
+
+      // Actualizar el estado local para que la tarjeta aparezca como completada de inmediato
+      if (data && data.length > 0) {
+        const saved = data[0];
+        const nuevaEval: EvaluacionRol = {
+          id: saved.id,
+          studentName: saved.student_name,
+          role: saved.role as RolEvaluacion,
+          answers: saved.answers as Answer[],
+          timestamp: new Date(saved.timestamp).getTime(),
+        };
+        setEvaluacionesRol(prev => [...prev, nuevaEval]);
       }
 
       setRoleView(null);
