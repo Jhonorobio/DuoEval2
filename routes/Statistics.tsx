@@ -530,7 +530,7 @@ export const StatisticsView: React.FC<StatisticsViewProps> = ({ evaluations, eva
     );
 };
 
-  if (evaluations.length === 0) {
+  if (evaluations.length === 0 && evaluacionesRol.length === 0) {
     return (
         <div className="animate-fade">
             <div className="flex items-center mb-6">
